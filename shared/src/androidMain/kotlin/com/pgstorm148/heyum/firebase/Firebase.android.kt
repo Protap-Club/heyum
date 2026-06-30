@@ -1,6 +1,11 @@
 package com.pgstorm148.heyum.firebase
 
+import android.app.Activity
+import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth as AndroidAuth
+import com.google.firebase.auth.PhoneAuthCredential
+import com.google.firebase.auth.PhoneAuthOptions
+import com.google.firebase.auth.PhoneAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore as AndroidFirestore
 import com.google.firebase.firestore.Query
 import com.pgstorm148.heyum.model.FirebaseUser
@@ -9,6 +14,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import java.util.concurrent.TimeUnit
 
 actual class FirebaseAuth actual constructor() {
     private val auth = AndroidAuth.getInstance()
@@ -42,19 +48,45 @@ actual class FirebaseAuth actual constructor() {
         onCodeSent: (verificationId: String) -> Unit,
         onFailed: (String) -> Unit
     ) {
-        // Mock fallback for emulator testing, or calls standard verification.
-        // We trigger mock verification ID for testing without SMS fees.
-        onCodeSent("mock_verification_id_12345")
+        val activity = AndroidActivityHolder.getActivity()
+        if (activity == null) {
+            onFailed("Unable to start phone verification. Please reopen the app and try again.")
+            return
+        }
+
+        val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+            override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+                // Firebase can auto-resolve some numbers; fall back to sign-in immediately.
+                onFailed("Phone verification completed automatically. Please try again in the app.")
+            }
+
+            override fun onVerificationFailed(exception: FirebaseException) {
+                onFailed(exception.message ?: "Phone verification failed")
+            }
+
+            override fun onCodeSent(
+                verificationId: String,
+                token: PhoneAuthProvider.ForceResendingToken
+            ) {
+                onCodeSent(verificationId)
+            }
+        }
+
+        val options = PhoneAuthOptions.newBuilder(auth)
+            .setPhoneNumber(phoneNumber)
+            .setTimeout(60L, TimeUnit.SECONDS)
+            .setActivity(activity)
+            .setCallbacks(callbacks)
+            .build()
+
+        PhoneAuthProvider.verifyPhoneNumber(options)
     }
 
     actual suspend fun signInWithCode(
         verificationId: String,
         verificationCode: String
     ): FirebaseUser {
-        if (verificationCode == "123456") {
-            return FirebaseUser("mock_phone_user_id", "phone_user@test.com")
-        }
-        val credential = com.google.firebase.auth.PhoneAuthProvider.getCredential(verificationId, verificationCode)
+        val credential = PhoneAuthProvider.getCredential(verificationId, verificationCode)
         val result = auth.signInWithCredential(credential).await()
         val user = result.user ?: throw Exception("Phone sign in failed")
         return FirebaseUser(user.uid, user.phoneNumber ?: user.email)
