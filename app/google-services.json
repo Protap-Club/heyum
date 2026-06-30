@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "420053781260",
+    "project_id": "heyum-de1f9",
+    "storage_bucket": "heyum-de1f9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:420053781260:android:58e60fd092d6b469615729",
+        "android_client_info": {
+          "package_name": "com.pgstorm148.heyum"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBWocdT7uwzwuxNez97l_drzNRWgSdz9WM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
