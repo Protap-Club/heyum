@@ -10,6 +10,7 @@ actual val platformModule: Module = module {
     single<DishRepository> { IosDishRepository() }
     single<UserRepository> { IosUserRepository() }
     single<GroupSessionRepository> { IosGroupSessionRepository() }
+    single<AmbienceRepository> { IosAmbienceRepository() }
     single<com.pgstorm148.heyum.engine.MealLogRepository> { com.pgstorm148.heyum.engine.IosMealLogRepository() }
     single<com.pgstorm148.heyum.engine.PreferenceRepository> { com.pgstorm148.heyum.engine.IosPreferenceRepository() }
 }

@@ -144,27 +144,6 @@ data class Dish(
     val orderingUrl: String? = null,
     val mealType: List<String> = emptyList()
 )
-// Group Session
-data class GroupSession(
-    val id: String = "",
-    val code: String = "",
-    val hostId: String = "",
-    val members: List<GroupMember> = emptyList(),
-    val currentSuggestions: List<String> = emptyList(),
-    val finalDecision: String? = null,
-    val expiresAt: Long = 0L
-)
-
-data class GroupMember(
-    val userId: String,
-    val name: String,
-    val initials: String,
-    val colorHex: String,
-    val dietaryRestrictions: List<DietaryRestriction> = emptyList(),
-    val favoriteCuisines: List<Cuisine> = emptyList(),
-    val spiceTolerance: Int = 3
-)
-
 data class NotificationPayload(
     val type: String, // nudge, reminder, reorder, reorder_direct, waste, group
     val dishId: String? = null,

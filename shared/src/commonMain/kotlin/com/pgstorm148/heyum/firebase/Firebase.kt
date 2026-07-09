@@ -37,10 +37,18 @@ interface UserRepository {
     suspend fun updateTasteVector(userId: String, tasteVector: Map<String, Float>)
 }
 
+interface AmbienceRepository {
+    /** Emits the current server-driven ambience config; degrades to [AmbienceConfig.Default] on error. */
+    fun observeAmbience(): Flow<AmbienceConfig>
+}
+
 interface GroupSessionRepository {
     fun observeSession(code: String): Flow<GroupSession?>
     suspend fun createSession(session: GroupSession)
     suspend fun joinSession(code: String, member: GroupMember)
     suspend fun makeDecision(code: String, dishId: String)
-    suspend fun cycleSuggestions(code: String, dishIds: List<String>)
+    suspend fun updateSelection(code: String, userId: String, cuisine: String, dish: String)
+    suspend fun startCollaboration(code: String)
+    suspend fun endSession(code: String)
+    suspend fun leaveSession(code: String, userId: String)
 }

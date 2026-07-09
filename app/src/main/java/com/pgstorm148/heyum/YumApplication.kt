@@ -2,6 +2,7 @@ package com.pgstorm148.heyum
 
 import android.app.Application
 import com.pgstorm148.heyum.di.initKoin
+import com.pgstorm148.heyum.notifications.NotificationScheduler
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 import com.pgstorm148.heyum.engine.MealLogRepository
@@ -20,5 +21,6 @@ class YumApplication : Application() {
             })
         }
         YumNotificationService.createNotificationChannels(this)
+        NotificationScheduler.scheduleMealNotifications(this)
     }
 }

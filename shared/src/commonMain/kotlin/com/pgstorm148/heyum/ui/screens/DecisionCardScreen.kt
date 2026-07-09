@@ -21,8 +21,6 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
@@ -34,24 +32,19 @@ import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import com.pgstorm148.heyum.api.SuggestionEngineClient
-import com.pgstorm148.heyum.engine.TasteProfileEngine
-import com.pgstorm148.heyum.engine.GroupScoreResult
 import com.pgstorm148.heyum.engine.WidgetCache
+import com.pgstorm148.heyum.firebase.AmbienceRepository
 import com.pgstorm148.heyum.firebase.FirebaseAuth
 import com.pgstorm148.heyum.firebase.DishRepository
 import com.pgstorm148.heyum.firebase.UserRepository
 import com.pgstorm148.heyum.firebase.GroupSessionRepository
 import com.pgstorm148.heyum.model.*
-import com.pgstorm148.heyum.BASE_URL
 import com.pgstorm148.heyum.ui.theme.*
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 import org.koin.compose.koinInject
 import kotlin.random.Random
 
@@ -85,11 +78,12 @@ class DecisionCardScreenModel(
     var currentMood by mutableStateOf(Mood.COMFORT)
         private set
 
-    var activeGroupSession by mutableStateOf<GroupSession?>(null)
+    var pendingGroupSessionCode by mutableStateOf<String?>(null)
         private set
 
-    var groupSuggestionsList by mutableStateOf<List<Pair<Dish, GroupScoreResult>>>(emptyList())
-        private set
+    fun clearPendingGroupSessionCode() {
+        pendingGroupSessionCode = null
+    }
 
     var mealTypeStr: String = "ALL"
     var consecutiveNahCount by mutableStateOf(0)
@@ -106,68 +100,6 @@ class DecisionCardScreenModel(
         loadSuggestions()
     }
 
-    fun observeGroupSession(code: String) {
-        screenModelScope.launch {
-            groupRepository.observeSession(code).collect { session ->
-                activeGroupSession = session
-                if (session != null) {
-                    if (session.finalDecision != null) {
-                        // A final decision has been made
-                        launch {
-                            val finalDish = dishRepository.getDishesByContext(null, TimeOfDay.EVENING, "rainy")
-                                .firstOrNull()?.firstOrNull { it.id == session.finalDecision }
-                            if (finalDish != null) {
-                                _state.value = DecisionState.Loaded(
-                                    dishes = listOf(finalDish),
-                                    currentIndex = 0,
-                                    reason = "Group decision made! Tonight: ${finalDish.name} 🍛."
-                                )
-                            }
-                        }
-                    } else {
-                        calculateGroupSuggestions(session)
-                    }
-                }
-            }
-        }
-    }
-
-    private fun calculateGroupSuggestions(session: GroupSession) {
-        screenModelScope.launch {
-            // Ensure default dishes are prepopulated
-            launch {
-                try {
-                    prepopulateDishesIfEmpty()
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-            }
-
-            val allDishes = dishRepository.getDishesByContext(null, TimeOfDay.EVENING, "rainy").firstOrNull() ?: emptyList()
-            val groupResults = allDishes.map { dish ->
-                val scoreResult = TasteProfileEngine.scoreDishForGroup(session.members, dish)
-                dish to scoreResult
-            }
-            .filter { it.second.isCompatible }
-            .sortedByDescending { it.second.score }
-            .take(5)
-
-            groupSuggestionsList = groupResults
-
-            if (groupResults.isNotEmpty()) {
-                val topMatch = groupResults.first()
-                val scorePercent = (topMatch.second.score * 100).roundToInt()
-                _state.value = DecisionState.Loaded(
-                    dishes = groupResults.map { it.first },
-                    currentIndex = 0,
-                    reason = topMatch.second.callout ?: "$scorePercent% match for everyone"
-                )
-            } else {
-                _state.value = DecisionState.Empty
-            }
-        }
-    }
-
     fun hostGroupSession() {
         val code = (1000..9999).random().toString()
         screenModelScope.launch {
@@ -175,33 +107,37 @@ class DecisionCardScreenModel(
             val profile = kotlinx.coroutines.withTimeoutOrNull(800) {
                 userRepository.getUserProfile(userId).firstOrNull()
             } ?: UserProfile(id = userId, name = "Host")
+            // First member of a brand-new session, so any random fun name is unique.
+            val hostName = FunNames.pickUnique(emptyList())
             val hostMember = GroupMember(
                 userId = userId,
-                name = profile.name.ifBlank { "You" },
-                initials = if (profile.name.isNotBlank()) profile.name.split(" ").mapNotNull { it.firstOrNull() }.joinToString("").take(2).uppercase() else "YO",
-                colorHex = "#FF6B35",
-                dietaryRestrictions = profile.dietaryRestrictions,
-                favoriteCuisines = profile.favoriteCuisines,
-                spiceTolerance = profile.spiceTolerance
+                name = hostName,
+                tasteProfile = profile.favoriteCuisines.firstOrNull()?.name ?: "Indian",
+                joinedAt = nowMillis(),
+                isOrganizer = true,
+                dietaryRestrictions = profile.dietaryRestrictions.map { it.name },
+                spiceTolerance = profile.spiceTolerance,
+                favoriteCuisines = profile.favoriteCuisines.map { it.name }
             )
             val session = GroupSession(
                 id = "sess_${userId}_${nowMillis()}",
-                code = code,
-                hostId = userId,
+                organizerId = userId,
+                organizerName = hostName,
+                sessionName = "Meal Decision",
+                createdAt = nowMillis(),
+                mealType = mealTypeStr,
                 members = listOf(hostMember),
-                expiresAt = nowMillis() + 2 * 60 * 60 * 1000 // 2 hours
+                joinCode = code
             )
-            // Update activeGroupSession instantly
-            activeGroupSession = session
-            
-            launch {
-                try {
-                    groupRepository.createSession(session)
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
+            // Firestore applies writes to the local cache immediately and syncs in the
+            // background, so navigate right away instead of blocking on a server round-trip;
+            // GroupSessionScreen's listener will pick up this session from cache instantly.
+            pendingGroupSessionCode = code
+            try {
+                groupRepository.createSession(session)
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
-            observeGroupSession(code)
         }
     }
 
@@ -211,41 +147,30 @@ class DecisionCardScreenModel(
             val profile = kotlinx.coroutines.withTimeoutOrNull(800) {
                 userRepository.getUserProfile(userId).firstOrNull()
             } ?: UserProfile(id = userId, name = "Guest")
+            // Look at who's already in the session so we can pick a fun name nobody else has.
+            val existingSession = kotlinx.coroutines.withTimeoutOrNull(3000) {
+                groupRepository.observeSession(code).firstOrNull()
+            }
+            val takenNames = existingSession?.members?.map { it.name } ?: emptyList()
             val guestMember = GroupMember(
                 userId = userId,
-                name = profile.name.ifBlank { "Guest" },
-                initials = if (profile.name.isNotBlank()) profile.name.split(" ").mapNotNull { it.firstOrNull() }.joinToString("").take(2).uppercase() else "GU",
-                colorHex = listOf("#1B5E20", "#00ACC1", "#E53935", "#8E24AA", "#FFB300").random(),
-                dietaryRestrictions = profile.dietaryRestrictions,
-                favoriteCuisines = profile.favoriteCuisines,
-                spiceTolerance = profile.spiceTolerance
+                name = FunNames.pickUnique(takenNames),
+                tasteProfile = profile.favoriteCuisines.firstOrNull()?.name ?: "Indian",
+                joinedAt = nowMillis(),
+                isOrganizer = false,
+                dietaryRestrictions = profile.dietaryRestrictions.map { it.name },
+                spiceTolerance = profile.spiceTolerance,
+                favoriteCuisines = profile.favoriteCuisines.map { it.name }
             )
+            // Same reasoning as hostGroupSession: don't block navigation on the server
+            // round-trip. GroupSessionScreen shows its own "couldn't find that session"
+            // message if the code turns out to be invalid or unreachable.
+            pendingGroupSessionCode = code
             try {
-                val success = kotlinx.coroutines.withTimeoutOrNull(2000) {
-                    groupRepository.joinSession(code, guestMember)
-                    true
-                }
-                if (success == true) {
-                    observeGroupSession(code)
-                } else {
-                    onFail("Join timed out. Please check your network.")
-                }
+                groupRepository.joinSession(code, guestMember)
             } catch (e: Exception) {
-                onFail("Could not join session. Check the code.")
+                e.printStackTrace()
             }
-        }
-    }
-
-    fun leaveGroupSession() {
-        activeGroupSession = null
-        groupSuggestionsList = emptyList()
-        loadSuggestions()
-    }
-
-    fun selectGroupDecision(dishId: String) {
-        val session = activeGroupSession ?: return
-        screenModelScope.launch {
-            groupRepository.makeDecision(session.code, dishId)
         }
     }
 
@@ -336,23 +261,19 @@ class DecisionCardScreenModel(
             val currentDish = currentState.dishes[currentState.currentIndex]
 
             val context = MealContext(TimeOfDay.EVENING, "rainy", currentMood)
-            val userProfile = kotlinx.coroutines.withTimeoutOrNull(500) {
-                userRepository.getUserProfile(userId).firstOrNull()
-            } ?: UserProfile(id = userId, name = "Gourmet Nom")
-
-            val updatedUser = TasteProfileEngine.updateTasteProfile(
-                user = userProfile,
-                dish = currentDish,
-                accepted = false,
-                context = context,
-                timestamp = nowMillis()
-            )
 
             // Run database updates in background so they don't freeze the card swipe animation
             launch {
                 try {
-                    userRepository.updateTasteVector(userId, updatedUser.tasteVector)
-                    userRepository.updateMealHistory(userId, updatedUser.mealHistory.last())
+                    val mealEntry = MealHistoryEntry(
+                        id = currentDish.id,
+                        dishName = currentDish.name,
+                        cuisine = currentDish.cuisine,
+                        accepted = false,
+                        timestamp = nowMillis(),
+                        context = context
+                    )
+                    userRepository.updateMealHistory(userId, mealEntry)
                     
                     val currentRejected = preferenceRepository.getRejectedDishes().toMutableMap()
                     currentRejected[currentDish.id] = RejectedDish(
@@ -377,10 +298,12 @@ class DecisionCardScreenModel(
                 com.pgstorm148.heyum.engine.triggerWidgetUpdate()
             } catch (e: Exception) {}
 
-            val nextIndex = currentState.currentIndex + 1
-            if (nextIndex >= currentState.dishes.size) {
+            // Revolve through the deck: when we reach the end, wrap back to the start so users
+            // never run out of options and can revisit a dish they skipped earlier.
+            if (currentState.dishes.isEmpty()) {
                 _state.value = DecisionState.Empty
             } else {
+                val nextIndex = (currentState.currentIndex + 1) % currentState.dishes.size
                 _state.value = currentState.copy(
                     currentIndex = nextIndex,
                     reason = "Chosen dynamically based on your taste settings."
@@ -400,20 +323,19 @@ class DecisionCardScreenModel(
                 userRepository.getUserProfile(userId).firstOrNull()
             } ?: UserProfile(id = userId, name = "Gourmet Nom")
 
-            val updatedUser = TasteProfileEngine.updateTasteProfile(
-                user = userProfile,
-                dish = currentDish,
-                accepted = true,
-                context = context,
-                timestamp = nowMillis()
-            )
-
             // Run database updates in background
             launch {
                 try {
                     consecutiveNahCount = 0
-                    userRepository.updateTasteVector(userId, updatedUser.tasteVector)
-                    userRepository.updateMealHistory(userId, updatedUser.mealHistory.last())
+                    val mealEntry = MealHistoryEntry(
+                        id = currentDish.id,
+                        dishName = currentDish.name,
+                        cuisine = currentDish.cuisine,
+                        accepted = true,
+                        timestamp = nowMillis(),
+                        context = context
+                    )
+                    userRepository.updateMealHistory(userId, mealEntry)
                     
                     val entry = MealLogEntry(
                         id = "log_${nowMillis()}",
@@ -476,6 +398,12 @@ class DecisionCardScreen(
         val screenModel: DecisionCardScreenModel = koinInject()
         val state by screenModel.state.collectAsState()
 
+        // Server-driven ambience (rain, sunny, etc.). Purely decorative; defaults to off, so this
+        // never affects the decision flow. Real-time — Firestore console edits apply live.
+        val ambienceRepo: AmbienceRepository = koinInject()
+        val ambienceConfig by remember { ambienceRepo.observeAmbience() }
+            .collectAsState(initial = AmbienceConfig.Default)
+
         LaunchedEffect(mealType) {
             screenModel.init(mealType)
         }
@@ -493,6 +421,15 @@ class DecisionCardScreen(
         var isSlideLeft by remember { mutableStateOf(true) }
         var isTooltipVisible by remember { mutableStateOf(showTooltip) }
         var showGroupBottomSheet by remember { mutableStateOf(false) }
+
+        LaunchedEffect(screenModel.pendingGroupSessionCode) {
+            val code = screenModel.pendingGroupSessionCode
+            if (code != null) {
+                screenModel.clearPendingGroupSessionCode()
+                showGroupBottomSheet = false
+                navigator.push(GroupSessionScreen(code))
+            }
+        }
 
         // Particles for Confetti
         var particles by remember { mutableStateOf<List<EmojiParticle>>(emptyList()) }
@@ -520,7 +457,6 @@ class DecisionCardScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp)
                 ) {
-                    val groupSession = screenModel.activeGroupSession
                     Column(
                         modifier = Modifier.fillMaxSize(),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -534,30 +470,13 @@ class DecisionCardScreen(
                                 fontSize = 32.sp
                             )
                         )
-                        if (groupSession != null) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Text(
-                                    text = "For you + ${groupSession.members.size - 1} others",
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        color = AccentColor,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 12.sp
-                                    )
-                                )
-                                GroupAvatarsRow(groupSession.members)
-                            }
-                        } else {
-                            Text(
-                                text = "your taste, decided",
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    color = Color(0xFF888888),
-                                    fontSize = 12.sp
-                                )
+                        Text(
+                            text = "your taste, decided",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                color = Color(0xFF888888),
+                                fontSize = 12.sp
                             )
-                        }
+                        )
                     }
 
                     // Header Actions (Settings ⚙️, Kitchen 🥘 & Group Mode 👥)
@@ -596,15 +515,12 @@ class DecisionCardScreen(
                         IconButton(
                             onClick = { showGroupBottomSheet = true },
                             modifier = Modifier
-                                .background(
-                                    if (groupSession != null) PrimaryColor.copy(alpha = 0.15f) else Color.Transparent,
-                                    CircleShape
-                                )
+                                .background(Color.Transparent, CircleShape)
                         ) {
                             Text(
                                 text = "👥",
                                 fontSize = 20.sp,
-                                color = if (groupSession != null) PrimaryColor else TextColor
+                                color = TextColor
                             )
                         }
                     }
@@ -729,24 +645,15 @@ class DecisionCardScreen(
                                                 )
                                             }
                                             particlesAlpha.snapTo(1f)
-                                            if (screenModel.activeGroupSession != null) {
-                                                screenModel.selectGroupDecision(dish.id)
-                                            } else {
-                                                screenModel.onYum()
-                                            }
+                                            // onYum() logs the accepted dish to the daily meal log
+                                            // (backend "daily space") before we move on.
+                                            screenModel.onYum()
                                             particlesAlpha.animateTo(0f, tween(800, easing = FastOutSlowInEasing))
                                             particles = emptyList()
-                                            // Transition to confirmation experience
-                                            val emoji = try { MealType.valueOf(screenModel.mealTypeStr).emoji } catch(e: Exception) { "🍽️" }
-                                            val displayName = try { MealType.valueOf(screenModel.mealTypeStr).displayName } catch(e: Exception) { screenModel.mealTypeStr }
-                                            // For simplicity, fetching latest log or just passing empty id to trigger rating 
-                                            // (Actual ID match depends on how fast insert completes, assuming we pass a generated ID or fetch later)
-                                            navigator.push(ConfirmationScreen(
-                                                mealLogId = "", // Updated in DB by dishId in this session if needed, or we pass valid ID
-                                                dishName = dish.name,
-                                                mealTypeStr = displayName,
-                                                mealEmoji = emoji
-                                            ))
+                                            // Take the user straight into "make it": recipe, ingredient
+                                            // check, quick-commerce for missing items, timer, and an
+                                            // order-the-dish option at the bottom.
+                                            navigator.push(PostDecisionScreen(dish, screenModel.currentMood))
                                         }
                                     }
                                 )
@@ -849,6 +756,10 @@ class DecisionCardScreen(
                     }
                 }
             }
+
+            // Decorative ambience, drawn OVER the content (so rain/snow fall across the whole
+            // screen) but UNDER the modals below. Non-interactive: touches pass through to the card.
+            AmbienceOverlay(ambienceConfig, Modifier.fillMaxSize())
 
             if (showGroupBottomSheet) {
                 GroupModeBottomSheet(
@@ -1170,7 +1081,12 @@ fun GroupAvatarsRow(members: List<GroupMember>) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         members.take(4).forEach { member ->
-            val color = parseHexColor(member.colorHex)
+            val initials = member.name.split(" ").map { it.firstOrNull() }.joinToString("").take(2).uppercase()
+            val colors = listOf(
+                Color(0xFFCCFF00), Color(0xFF4A90E2), Color(0xFF7B68EE),
+                Color(0xFFFF6B6B), Color(0xFF50E3C2), Color(0xFFF5A623)
+            )
+            val color = colors[member.userId.hashCode().mod(colors.size)]
             Box(
                 modifier = Modifier
                     .size(20.dp)
@@ -1180,9 +1096,9 @@ fun GroupAvatarsRow(members: List<GroupMember>) {
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = member.initials,
+                    text = initials,
                     style = MaterialTheme.typography.labelSmall.copy(
-                        color = Color.White,
+                        color = Color.Black,
                         fontWeight = FontWeight.Bold,
                         fontSize = 8.sp
                     )
@@ -1226,13 +1142,10 @@ fun GroupModeBottomSheet(
     screenModel: DecisionCardScreenModel,
     onDismiss: () -> Unit
 ) {
-    val clipboardManager = LocalClipboardManager.current
-    val coroutineScope = rememberCoroutineScope()
     var joinCodeInput by remember { mutableStateOf("") }
     var joinError by remember { mutableStateOf<String?>(null) }
-    var isLinkCopied by remember { mutableStateOf(false) }
-
-    val session = screenModel.activeGroupSession
+    var isJoining by remember { mutableStateOf(false) }
+    var isCreating by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -1272,7 +1185,7 @@ fun GroupModeBottomSheet(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (session == null) "Eating together?" else "Group Mode Active 👥",
+                        text = "Eating together?",
                         style = MaterialTheme.typography.titleLarge.copy(
                             color = TextColor,
                             fontWeight = FontWeight.Bold
@@ -1285,188 +1198,96 @@ fun GroupModeBottomSheet(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                if (session == null) {
-                    Text(
-                        text = "Let's find something everyone loves ❤️",
-                        style = MaterialTheme.typography.bodyMedium.copy(color = TextMutedColor),
-                        textAlign = TextAlign.Start,
-                        modifier = Modifier.align(Alignment.Start)
-                    )
+                Text(
+                    text = "Let's find something everyone loves ❤️",
+                    style = MaterialTheme.typography.bodyMedium.copy(color = TextMutedColor),
+                    textAlign = TextAlign.Start,
+                    modifier = Modifier.align(Alignment.Start)
+                )
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-                    Button(
-                        onClick = {
-                            screenModel.hostGroupSession()
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryColor),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp)
-                    ) {
+                Button(
+                    onClick = {
+                        isCreating = true
+                        screenModel.hostGroupSession()
+                    },
+                    enabled = !isCreating,
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryColor),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                ) {
+                    if (isCreating) {
+                        CircularProgressIndicator(color = SecondaryColor, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    } else {
                         Text("Create Group Session 🚀", color = SecondaryColor, style = MaterialTheme.typography.titleMedium)
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(20.dp))
-                    Text(text = "— OR —", style = MaterialTheme.typography.labelSmall.copy(color = TextMutedColor))
-                    Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(20.dp))
+                Text(text = "— OR —", style = MaterialTheme.typography.labelSmall.copy(color = TextMutedColor))
+                Spacer(modifier = Modifier.height(20.dp))
 
-                    Text(
-                        text = "Join an existing session:",
-                        style = MaterialTheme.typography.labelLarge.copy(color = TextColor),
-                        modifier = Modifier.align(Alignment.Start)
+                Text(
+                    text = "Join an existing session:",
+                    style = MaterialTheme.typography.labelLarge.copy(color = TextColor),
+                    modifier = Modifier.align(Alignment.Start)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = joinCodeInput,
+                        onValueChange = {
+                            if (it.length <= 4) joinCodeInput = it.filter { char -> char.isDigit() }
+                            joinError = null
+                        },
+                        placeholder = { Text("4-digit code", color = TextMutedColor.copy(alpha = 0.6f)) },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = PrimaryColor,
+                            unfocusedBorderColor = LightGray,
+                            cursorColor = PrimaryColor
+                        ),
+                        modifier = Modifier.weight(1f)
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedTextField(
-                            value = joinCodeInput,
-                            onValueChange = { 
-                                if (it.length <= 4) joinCodeInput = it.filter { char -> char.isDigit() }
+                    Button(
+                        onClick = {
+                            if (joinCodeInput.length == 4) {
+                                isJoining = true
                                 joinError = null
-                            },
-                            placeholder = { Text("4-digit code", color = TextMutedColor.copy(alpha = 0.6f)) },
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = PrimaryColor,
-                                unfocusedBorderColor = LightGray,
-                                cursorColor = PrimaryColor
-                            ),
-                            modifier = Modifier.weight(1f)
-                        )
-                        Button(
-                            onClick = {
-                                if (joinCodeInput.length == 4) {
-                                    screenModel.joinGroupSession(joinCodeInput) { err ->
-                                        joinError = err
-                                    }
-                                } else {
-                                    joinError = "Please enter a 4-digit code"
+                                screenModel.joinGroupSession(joinCodeInput) { err ->
+                                    isJoining = false
+                                    joinError = err
                                 }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.height(52.dp)
-                        ) {
+                            } else {
+                                joinError = "Please enter a 4-digit code"
+                            }
+                        },
+                        enabled = !isJoining,
+                        colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.height(52.dp)
+                    ) {
+                        if (isJoining) {
+                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        } else {
                             Text("Join", color = Color.White)
                         }
                     }
-                    if (joinError != null) {
-                        Text(
-                            text = joinError!!,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(top = 4.dp).align(Alignment.Start)
-                        )
-                    }
-                } else {
+                }
+                if (joinError != null) {
                     Text(
-                        text = "Session Code:",
-                        style = MaterialTheme.typography.labelLarge.copy(color = TextMutedColor)
+                        text = joinError!!,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp).align(Alignment.Start)
                     )
-                    Text(
-                        text = session.code,
-                        style = MaterialTheme.typography.headlineMedium.copy(
-                            color = PrimaryColor,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 42.sp,
-                            letterSpacing = 2.sp
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    val inviteText = "Help us decide dinner! Join my Heyum group: $BASE_URL/join/${session.code} or use code: ${session.code}"
-                    Card(
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
-                            Text(
-                                text = "Invite Message:",
-                                style = MaterialTheme.typography.labelSmall.copy(color = TextMutedColor)
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = inviteText,
-                                style = MaterialTheme.typography.bodyMedium.copy(color = TextColor)
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Button(
-                                onClick = {
-                                    clipboardManager.setText(AnnotatedString(inviteText))
-                                    isLinkCopied = true
-                                    coroutineScope.launch {
-                                        delay(2000)
-                                        isLinkCopied = false
-                                    }
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = if (isLinkCopied) AccentColor else PrimaryColor),
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    text = if (isLinkCopied) "Copied! Share on WhatsApp 🔗" else "Copy Invite Message 🔗",
-                                    color = Color.White
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    Text(
-                        text = "Group Members (${session.members.size}):",
-                        style = MaterialTheme.typography.labelLarge.copy(color = TextColor),
-                        modifier = Modifier.align(Alignment.Start)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        session.members.forEach { member ->
-                            val color = parseHexColor(member.colorHex)
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(color),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = member.initials,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(28.dp))
-
-                    OutlinedButton(
-                        onClick = {
-                            screenModel.leaveGroupSession()
-                            onDismiss()
-                        },
-                        border = BorderStroke(1.dp, Color.Red.copy(alpha = 0.5f)),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                    ) {
-                        Text("Leave Group Session 🚪")
-                    }
                 }
             }
         }

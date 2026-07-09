@@ -28,6 +28,13 @@ import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import androidx.compose.ui.platform.UriHandler
+import com.pgstorm148.heyum.delivery.DeliveryApp
+import com.pgstorm148.heyum.delivery.dishSearchUrl
+import com.pgstorm148.heyum.delivery.getInstalledFoodDeliveryApps
+import com.pgstorm148.heyum.delivery.getInstalledQuickCommerceApps
+import com.pgstorm148.heyum.delivery.grocerySearchUrl
+import com.pgstorm148.heyum.delivery.openDeliveryApp
 import com.pgstorm148.heyum.firebase.FirebaseAuth
 import com.pgstorm148.heyum.firebase.UserRepository
 import com.pgstorm148.heyum.model.*
@@ -40,7 +47,8 @@ import kotlin.math.roundToInt
 
 class PostDecisionScreen(
     private val dish: Dish,
-    private val mood: Mood
+    private val mood: Mood,
+    private val initialShowOrderTab: Boolean = false
 ) : Screen {
 
     @Composable
@@ -59,7 +67,6 @@ class PostDecisionScreen(
         // Cooking Timer state
         var isTimerActive by remember { mutableStateOf(false) }
         var timerSecondsLeft by remember { mutableStateOf(dish.prepTimeMinutes * 60) }
-        var showTimerMode by remember { mutableStateOf(false) }
 
         // Feedback/Rating state
         var feedbackSubmitted by remember { mutableStateOf<String?>(null) }
@@ -340,296 +347,245 @@ class PostDecisionScreen(
                             .fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        // Options Row
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            // Cook It option card
-                            Card(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clickable { showTimerMode = false },
-                                shape = RoundedCornerShape(18.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (!showTimerMode) Color(0xFF1E1E1E) else Color(0xFF2A2A2A)
-                                ),
-                                border = BorderStroke(
-                                    width = 2.dp,
-                                    color = if (!showTimerMode) PrimaryColor else Color.Transparent
-                                )
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(16.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Text("🧑‍🍳", fontSize = 28.sp)
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        "Cook It Myself",
-                                        style = MaterialTheme.typography.bodyLarge.copy(
-                                            color = Color.White,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    )
-                                }
-                            }
+                        val installedGroceryApps = remember { getInstalledQuickCommerceApps() }
+                        val installedFoodApps = remember { getInstalledFoodDeliveryApps() }
 
-                            // Order It Option card (Show only if ordering details available)
-                            if (dish.orderingAvailable || dish.orderingUrl != null) {
-                                Card(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clickable { showTimerMode = true },
-                                    shape = RoundedCornerShape(18.dp),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = if (showTimerMode) Color(0xFF1E1E1E) else Color(0xFF2A2A2A)
-                                    ),
-                                    border = BorderStroke(
-                                        width = 2.dp,
-                                        color = if (showTimerMode) PrimaryColor else Color.Transparent
+                        // Group "Order" entry point leads with ordering; recipe stays available below.
+                        if (initialShowOrderTab) {
+                            OrderDishSection(dish = dish, apps = installedFoodApps, uriHandler = uriHandler)
+                        }
+
+                        // --- STEP 1: Ingredient availability check ---
+                        Card(
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(20.dp)) {
+                                Text(
+                                    text = "🧺 Check your kitchen",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold
                                     )
-                                ) {
-                                    Column(
-                                        modifier = Modifier.padding(16.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Tap everything you already have. We'll help you grab the rest.",
+                                    style = MaterialTheme.typography.bodyMedium.copy(color = Color.White.copy(alpha = 0.6f))
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                // Ingredients List with checkboxes
+                                dish.ingredients.forEach { ingredient ->
+                                    val isChecked = checkedIngredients.contains(ingredient)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                if (isChecked) checkedIngredients.remove(ingredient)
+                                                else checkedIngredients.add(ingredient)
+                                            }
+                                            .padding(vertical = 6.dp)
                                     ) {
-                                        Text("🛵", fontSize = 28.sp)
-                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .size(20.dp)
+                                                .border(
+                                                    1.5.dp,
+                                                    if (isChecked) PrimaryColor else Color.Gray,
+                                                    RoundedCornerShape(4.dp)
+                                                )
+                                                .background(
+                                                    if (isChecked) PrimaryColor else Color.Transparent,
+                                                    RoundedCornerShape(4.dp)
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            if (isChecked) {
+                                                Text("✓", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.width(10.dp))
                                         Text(
-                                            "Order It",
-                                            style = MaterialTheme.typography.bodyLarge.copy(
-                                                color = Color.White,
-                                                fontWeight = FontWeight.Bold
+                                            text = ingredient,
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                color = if (isChecked) Color.White.copy(alpha = 0.5f) else Color.White
                                             )
                                         )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                val missingIngredients = dish.ingredients.filter { !checkedIngredients.contains(it) }
+                                when {
+                                    dish.ingredients.isEmpty() -> {
+                                        // No ingredient list to check against; skip straight to the recipe.
+                                    }
+                                    missingIngredients.isEmpty() -> {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(AccentColor.copy(alpha = 0.15f))
+                                                .padding(12.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "🎉 You've got everything — let's cook!",
+                                                style = MaterialTheme.typography.bodyMedium.copy(
+                                                    color = SecondaryColor,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            )
+                                        }
+                                    }
+                                    else -> {
+                                        Text(
+                                            text = "Missing ${missingIngredients.size}: ${missingIngredients.joinToString(", ")}",
+                                            style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFFFFB74D))
+                                        )
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        if (installedGroceryApps.isEmpty()) {
+                                            Button(
+                                                onClick = {
+                                                    val query = missingIngredients.joinToString(" ").replace(" ", "+")
+                                                    uriHandler.openUri("https://blinkit.com/s/?q=$query")
+                                                },
+                                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryColor),
+                                                shape = RoundedCornerShape(12.dp),
+                                                modifier = Modifier.fillMaxWidth().height(48.dp)
+                                            ) {
+                                                Text("Order missing ingredients 🛒", color = SecondaryColor)
+                                            }
+                                        } else {
+                                            Text(
+                                                text = "Order the missing items in seconds:",
+                                                style = MaterialTheme.typography.labelMedium.copy(color = Color.White.copy(alpha = 0.7f)),
+                                                modifier = Modifier.padding(bottom = 8.dp)
+                                            )
+                                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                                installedGroceryApps.forEach { app ->
+                                                    RestaurantPriceRow(
+                                                        name = app.displayName,
+                                                        price = "",
+                                                        deliveryTime = "10 min",
+                                                        logo = app.emoji,
+                                                        onClick = { openDeliveryApp(app, app.grocerySearchUrl(missingIngredients)) }
+                                                    )
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
 
-                        // --- Content based on selection ---
-                        if (!showTimerMode) {
-                            // --- OPTION A: COOK IT MYSELF ---
-                            Card(
-                                shape = RoundedCornerShape(20.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(20.dp)) {
-                                    Text(
-                                        text = "Here's what you need:",
-                                        style = MaterialTheme.typography.titleMedium.copy(
-                                            color = Color.White,
-                                            fontWeight = FontWeight.Bold
-                                        ),
-                                        modifier = Modifier.padding(bottom = 12.dp)
-                                    )
+                        // --- STEP 2: Recipe steps + cooking timer ---
+                        Card(
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(20.dp)) {
+                                Text(
+                                    text = "👨‍🍳 Recipe for ${dish.name}",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    modifier = Modifier.padding(bottom = 12.dp)
+                                )
 
-                                    // Ingredients List with checkboxes
-                                    dish.ingredients.forEach { ingredient ->
-                                        val isChecked = checkedIngredients.contains(ingredient)
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clickable {
-                                                    if (isChecked) checkedIngredients.remove(ingredient)
-                                                    else checkedIngredients.add(ingredient)
-                                                }
-                                                .padding(vertical = 6.dp)
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(20.dp)
-                                                    .border(
-                                                        1.5.dp,
-                                                        if (isChecked) PrimaryColor else Color.Gray,
-                                                        RoundedCornerShape(4.dp)
-                                                    )
-                                                    .background(
-                                                        if (isChecked) PrimaryColor else Color.Transparent,
-                                                        RoundedCornerShape(4.dp)
-                                                    ),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                if (isChecked) {
-                                                    Text("✓", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                                }
-                                            }
-                                            Spacer(modifier = Modifier.width(10.dp))
-                                            Text(
-                                                text = ingredient,
-                                                style = MaterialTheme.typography.bodyMedium.copy(
-                                                    color = if (isChecked) Color.White.copy(alpha = 0.5f) else Color.White
-                                                )
-                                            )
-                                        }
-                                    }
+                                val steps = if (dish.instructions.isNotEmpty()) dish.instructions else listOf(
+                                    "Prep the ingredients by washing and chopping as required.",
+                                    "Heat a cooking pan over medium flame and add seasonings.",
+                                    "Stir in the main ingredients and saute for 10-12 minutes.",
+                                    "Simmer on low flame, garnish with fresh herbs, and serve hot."
+                                )
 
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    // Deep link buttons to Zepto/Blinkit for missing ingredients
-                                    val missingIngredients = dish.ingredients.filter { !checkedIngredients.contains(it) }
-                                    if (missingIngredients.isNotEmpty()) {
-                                        Button(
-                                            onClick = {
-                                                val query = missingIngredients.joinToString(",")
-                                                uriHandler.openUri("https://zepto.onelink.me/J447/cart?search=$query")
-                                            },
-                                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryColor),
-                                            shape = RoundedCornerShape(12.dp),
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(48.dp)
-                                        ) {
-                                            Text("Get missing ingredients on Zepto ⚡", color = SecondaryColor)
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(20.dp))
-                                    Divider(color = Color.White.copy(alpha = 0.1f))
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    // Full Recipe steps
-                                    Text(
-                                        text = "Recipe Steps:",
-                                        style = MaterialTheme.typography.titleMedium.copy(
-                                            color = Color.White,
-                                            fontWeight = FontWeight.Bold
-                                        ),
-                                        modifier = Modifier.padding(bottom = 8.dp)
-                                    )
-
-                                    val steps = if (dish.instructions.isNotEmpty()) dish.instructions else listOf(
-                                        "Prep the ingredients by washing and chopping as required.",
-                                        "Heat a cooking pan over medium flame and add seasonings.",
-                                        "Stir in the main ingredients and saute for 10-12 minutes.",
-                                        "Simmer on low flame, garnish with fresh herbs, and serve hot."
-                                    )
-
-                                    steps.forEachIndexed { index, step ->
-                                        Row(
-                                            modifier = Modifier.padding(vertical = 6.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                        ) {
-                                            Text(
-                                                text = "${index + 1}",
-                                                style = MaterialTheme.typography.bodyMedium.copy(
-                                                    color = PrimaryColor,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            )
-                                            Text(
-                                                text = step,
-                                                style = MaterialTheme.typography.bodyMedium.copy(color = Color.White.copy(alpha = 0.8f))
-                                            )
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(20.dp))
-
-                                    // Simple Cooking Timer Expandable Section
-                                    Card(
-                                        shape = RoundedCornerShape(14.dp),
-                                        colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A2A)),
-                                        modifier = Modifier.fillMaxWidth()
+                                steps.forEachIndexed { index, step ->
+                                    Row(
+                                        modifier = Modifier.padding(vertical = 6.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                                     ) {
-                                        Column(
-                                            modifier = Modifier.padding(16.dp),
-                                            horizontalAlignment = Alignment.CenterHorizontally
-                                        ) {
-                                            Text(
-                                                text = "⏱️ Cooking Timer",
-                                                style = MaterialTheme.typography.titleSmall.copy(
-                                                    color = Color.White,
-                                                    fontWeight = FontWeight.Bold
-                                                )
+                                        Text(
+                                            text = "${index + 1}",
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                color = PrimaryColor,
+                                                fontWeight = FontWeight.Bold
                                             )
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                            
-                                            val minutes = timerSecondsLeft / 60
-                                            val seconds = timerSecondsLeft % 60
-                                            Text(
-                                                text = "${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}",
-                                                style = MaterialTheme.typography.headlineMedium.copy(
-                                                    color = PrimaryColor,
-                                                    fontSize = 36.sp,
-                                                    fontWeight = FontWeight.ExtraBold
-                                                )
+                                        )
+                                        Text(
+                                            text = step,
+                                            style = MaterialTheme.typography.bodyMedium.copy(color = Color.White.copy(alpha = 0.8f))
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(20.dp))
+
+                                // Cooking Timer
+                                Card(
+                                    shape = RoundedCornerShape(14.dp),
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A2A)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(16.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text(
+                                            text = "⏱️ Cooking Timer",
+                                            style = MaterialTheme.typography.titleSmall.copy(
+                                                color = Color.White,
+                                                fontWeight = FontWeight.Bold
                                             )
-                                            Spacer(modifier = Modifier.height(12.dp))
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
 
-                                            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                                Button(
-                                                    onClick = { isTimerActive = !isTimerActive },
-                                                    colors = ButtonDefaults.buttonColors(containerColor = if (isTimerActive) Color.Red else AccentColor),
-                                                    shape = RoundedCornerShape(10.dp)
-                                                ) {
-                                                    Text(if (isTimerActive) "Pause" else "Start", color = Color.White)
-                                                }
+                                        val minutes = timerSecondsLeft / 60
+                                        val seconds = timerSecondsLeft % 60
+                                        Text(
+                                            text = "${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}",
+                                            style = MaterialTheme.typography.headlineMedium.copy(
+                                                color = PrimaryColor,
+                                                fontSize = 36.sp,
+                                                fontWeight = FontWeight.ExtraBold
+                                            )
+                                        )
+                                        Spacer(modifier = Modifier.height(12.dp))
 
-                                                OutlinedButton(
-                                                    onClick = {
-                                                        isTimerActive = false
-                                                        timerSecondsLeft = dish.prepTimeMinutes * 60
-                                                    },
-                                                    border = BorderStroke(1.dp, Color.Gray),
-                                                    shape = RoundedCornerShape(10.dp)
-                                                ) {
-                                                    Text("Reset", color = Color.White)
-                                                }
+                                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                            Button(
+                                                onClick = { isTimerActive = !isTimerActive },
+                                                colors = ButtonDefaults.buttonColors(containerColor = if (isTimerActive) Color.Red else AccentColor),
+                                                shape = RoundedCornerShape(10.dp)
+                                            ) {
+                                                Text(if (isTimerActive) "Pause" else "Start", color = Color.White)
+                                            }
+
+                                            OutlinedButton(
+                                                onClick = {
+                                                    isTimerActive = false
+                                                    timerSecondsLeft = dish.prepTimeMinutes * 60
+                                                },
+                                                border = BorderStroke(1.dp, Color.Gray),
+                                                shape = RoundedCornerShape(10.dp)
+                                            ) {
+                                                Text("Reset", color = Color.White)
                                             }
                                         }
                                     }
                                 }
                             }
-                        } else {
-                            // --- OPTION B: ORDER IT ---
-                            Card(
-                                shape = RoundedCornerShape(20.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(20.dp)) {
-                                    Text(
-                                        text = "Same dish, zero effort 🛵",
-                                        style = MaterialTheme.typography.titleMedium.copy(
-                                            color = Color.White,
-                                            fontWeight = FontWeight.Bold
-                                        ),
-                                        modifier = Modifier.padding(bottom = 8.dp)
-                                    )
-                                    Text(
-                                        text = "Compare prices and order from local restaurants near you.",
-                                        style = MaterialTheme.typography.bodyMedium.copy(color = Color.White.copy(alpha = 0.6f)),
-                                        modifier = Modifier.padding(bottom = 20.dp)
-                                    )
+                        }
 
-                                    // Mock Price Comparisons
-                                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                        RestaurantPriceRow(
-                                            name = "Swiggy (Sweet Tomato)",
-                                            price = "₹220",
-                                            deliveryTime = "25 mins",
-                                            logo = "🍛",
-                                            onClick = {
-                                                uriHandler.openUri(dish.orderingUrl ?: "https://www.swiggy.com")
-                                            }
-                                        )
-
-                                        RestaurantPriceRow(
-                                            name = "Zomato (Golden Dragon)",
-                                            price = "₹245",
-                                            deliveryTime = "20 mins",
-                                            logo = "🥡",
-                                            onClick = {
-                                                uriHandler.openUri("https://www.zomato.com")
-                                            }
-                                        )
-                                    }
-                                }
-                            }
+                        // --- STEP 3: Rather order the finished dish? (end of page) ---
+                        if (!initialShowOrderTab) {
+                            OrderDishSection(dish = dish, apps = installedFoodApps, uriHandler = uriHandler)
                         }
 
                         // 4. Confirmation block
@@ -784,6 +740,68 @@ class PostDecisionScreen(
     }
 }
 
+/**
+ * "Rather just order it?" — lists the food-delivery aggregators actually installed on the
+ * device (Swiggy, Zomato, etc.), deep-linking each to a search for this dish. Falls back to a
+ * web order link when none are installed.
+ */
+@Composable
+private fun OrderDishSection(
+    dish: Dish,
+    apps: List<DeliveryApp>,
+    uriHandler: UriHandler
+) {
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = "🛵 Rather just order it?",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                ),
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+            Text(
+                text = "Get ${dish.name} delivered from an app you already have.",
+                style = MaterialTheme.typography.bodyMedium.copy(color = Color.White.copy(alpha = 0.6f)),
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            if (apps.isEmpty()) {
+                Button(
+                    onClick = {
+                        uriHandler.openUri(
+                            dish.orderingUrl
+                                ?: "https://www.swiggy.com/search?query=${dish.name.replace(" ", "+")}"
+                        )
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryColor),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().height(48.dp)
+                ) {
+                    Text("Order online 🛵", color = SecondaryColor)
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    apps.forEach { app ->
+                        RestaurantPriceRow(
+                            name = app.displayName,
+                            price = "",
+                            deliveryTime = "",
+                            logo = app.emoji,
+                            onClick = { openDeliveryApp(app, app.dishSearchUrl(dish.name)) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun RestaurantPriceRow(
     name: String,
@@ -811,10 +829,16 @@ fun RestaurantPriceRow(
                 Text(text = logo, fontSize = 22.sp)
                 Column {
                     Text(text = name, style = MaterialTheme.typography.bodyMedium.copy(color = Color.White, fontWeight = FontWeight.Bold))
-                    Text(text = "⚡ Delivery in $deliveryTime", style = MaterialTheme.typography.labelSmall.copy(color = Color.Gray))
+                    if (deliveryTime.isNotBlank()) {
+                        Text(text = "⚡ Delivery in $deliveryTime", style = MaterialTheme.typography.labelSmall.copy(color = Color.Gray))
+                    }
                 }
             }
-            Text(text = price, style = MaterialTheme.typography.titleMedium.copy(color = PrimaryColor, fontWeight = FontWeight.ExtraBold))
+            if (price.isNotBlank()) {
+                Text(text = price, style = MaterialTheme.typography.titleMedium.copy(color = PrimaryColor, fontWeight = FontWeight.ExtraBold))
+            } else {
+                Text(text = "Open →", style = MaterialTheme.typography.labelMedium.copy(color = PrimaryColor, fontWeight = FontWeight.Bold))
+            }
         }
     }
 }

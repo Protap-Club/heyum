@@ -74,8 +74,7 @@ class MealSelectorScreen : Screen, KoinComponent {
                     isCurrent = isCurrent,
                     loggedDishName = loggedDish?.dishName,
                     onClick = {
-                        // TODO: Make DecisionCardScreen take mealType parameter
-                        // navigator.push(DecisionCardScreen(mealType = mealType.name))
+                        navigator.push(DecisionCardScreen(mealType = mealType.name))
                     }
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -89,7 +88,7 @@ class MealSelectorScreen : Screen, KoinComponent {
                     totalCount = allMeals.size,
                     onClick = {
                         val mealType = MealType.valueOf(missingMeals.first())
-                        // TODO: navigator.push(DecisionCardScreen(mealType = mealType.name))
+                        navigator.push(DecisionCardScreen(mealType = mealType.name))
                     }
                 )
             }

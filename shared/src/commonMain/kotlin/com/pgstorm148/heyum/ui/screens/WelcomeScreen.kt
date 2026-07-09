@@ -68,6 +68,8 @@ class WelcomeScreen(val initialNotificationPayload: NotificationPayload? = null)
                                 }
                             }
                             "group" -> {
+                                // DecisionCardScreen auto-joins via payload.groupId, then hands off
+                                // to GroupSessionScreen once the join succeeds (see pendingGroupSessionCode).
                                 navigator.replace(MealSelectorScreen())
                                 navigator.push(DecisionCardScreen(mealType = "ALL", autoJoinGroupCode = payload.groupId))
                             }
@@ -92,8 +94,13 @@ class WelcomeScreen(val initialNotificationPayload: NotificationPayload? = null)
         LaunchedEffect(Unit) {
             val user = auth.currentUser.firstOrNull()
             if (user != null) {
-                val profile = kotlinx.coroutines.withTimeoutOrNull(1500) {
-                    userRepository.getUserProfile(user.uid).firstOrNull()
+                val profile = try {
+                    kotlinx.coroutines.withTimeoutOrNull(1500) {
+                        userRepository.getUserProfile(user.uid).firstOrNull()
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    null
                 }
                 if (profile != null) {
                     handlePayloadNavigation(profile)

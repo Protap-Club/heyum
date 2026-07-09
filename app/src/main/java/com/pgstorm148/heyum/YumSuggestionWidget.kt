@@ -2,6 +2,7 @@ package com.pgstorm148.heyum
 
 import android.content.Context
 import android.content.Intent
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.Button
@@ -55,10 +56,10 @@ class YumSuggestionWidget : GlanceAppWidget() {
             val openAppAction = getOpenAppAction(context, dish)
 
             // Warm Palette Colors Provider
-            val backgroundColor = ColorProvider(android.graphics.Color.parseColor("#FFF8F0")) // Cream
-            val textColor = ColorProvider(android.graphics.Color.parseColor("#1A1A1A")) // Charcoal
-            val mutedTextColor = ColorProvider(android.graphics.Color.parseColor("#75706B")) // Slate
-            val accentColor = ColorProvider(android.graphics.Color.parseColor("#FF6B35")) // Orange
+            val backgroundColor = ColorProvider(Color(0xFFFFF8F0)) // Cream
+            val textColor = ColorProvider(Color(0xFF1A1A1A)) // Charcoal
+            val mutedTextColor = ColorProvider(Color(0xFF75706B)) // Slate
+            val accentColor = ColorProvider(Color(0xFFFF6B35)) // Orange
 
             Box(
                 modifier = GlanceModifier

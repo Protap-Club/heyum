@@ -3,6 +3,26 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+
+    <!-- Needed on API 30+ to detect these food & grocery apps via PackageManager, and to route
+         deep links into them. Keep in sync with CANDIDATE_APPS in DeliveryApps.android.kt. -->
+    <queries>
+        <!-- Quick commerce (ingredients) -->
+        <package android:name="com.grofers.customerapp" />
+        <package android:name="com.zeptoconsumerapp" />
+        <package android:name="com.bigbasket.mobileapp" />
+        <package android:name="com.flipkart.android" />
+        <package android:name="in.amazon.mShop.android.shopping" />
+        <!-- Food delivery (finished dish) -->
+        <package android:name="in.swiggy.android" />
+        <package android:name="com.application.zomato" />
+        <package android:name="com.swishapp" />
+        <package android:name="in.swiggy.android.toing" />
+        <package android:name="com.ownly.customer" />
+        <package android:name="com.poncho.eatclub" />
+    </queries>
 
     <application
         android:name=".YumApplication"

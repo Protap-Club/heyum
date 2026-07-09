@@ -67,13 +67,9 @@ class WidgetSuggestionEngine(
         }
 
         val context = MealContext(timeOfDay = timeOfDay, weather = "sunny", mood = Mood.COMFORT)
-        val scoredDishes = dishesPool.map { dish ->
-            val score = TasteProfileEngine.scoreDish(profile, dish, context)
-            dish to score
-        }.sortedByDescending { it.second }
 
-        // Pick top dish, fallback to standard default dish
-        val topDish = scoredDishes.firstOrNull()?.first ?: Dish(
+        // Simple scoring - use first dish from pool
+        val topDish = dishesPool.firstOrNull() ?: Dish(
             id = "ginger_tea",
             name = "Ginger Cardamom Chai",
             cuisine = Cuisine.COMFORT,
@@ -91,17 +87,19 @@ class WidgetSuggestionEngine(
         
         // Log choice in meal history
         val profile = userRepository.getUserProfile(userId).firstOrNull() ?: return
-        val context = MealContext(TimeOfDay.EVENING, "sunny", Mood.COMFORT)
-        val updatedUser = TasteProfileEngine.updateTasteProfile(
-            user = profile,
-            dish = currentDish,
+
+        // Log the action (simplified - just track in history)
+        val mealEntry = MealHistoryEntry(
+            id = currentDish.id,
+            dishName = currentDish.name,
+            cuisine = currentDish.cuisine,
             accepted = accepted,
-            context = context,
-            timestamp = nowMillis()
+            timestamp = nowMillis(),
+            context = MealContext(TimeOfDay.EVENING, "sunny", Mood.COMFORT)
         )
 
-        userRepository.updateTasteVector(userId, updatedUser.tasteVector)
-        userRepository.updateMealHistory(userId, updatedUser.mealHistory.last())
+        // Update user meal history only
+        userRepository.updateMealHistory(userId, mealEntry)
 
         // Clear and force update on next render
         widgetCache.clearCache()

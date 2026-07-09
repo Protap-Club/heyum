@@ -1,0 +1,31 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Steam wisps rising from the bowl -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.4"
+        android:strokeLineCap="round"
+        android:pathData="M8.5,9.5 c-1.2,-1.4 1.2,-2 0,-3.4 c-1.2,-1.4 1.2,-2 0,-3.4" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.4"
+        android:strokeLineCap="round"
+        android:pathData="M12,9.5 c-1.2,-1.4 1.2,-2 0,-3.4 c-1.2,-1.4 1.2,-2 0,-3.4" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.4"
+        android:strokeLineCap="round"
+        android:pathData="M15.5,9.5 c-1.2,-1.4 1.2,-2 0,-3.4 c-1.2,-1.4 1.2,-2 0,-3.4" />
+
+    <!-- Bowl (flat rim at the top, rounded body below) -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M3,11.5 h18 a9,9 0 0 1 -18,0 Z" />
+</vector>

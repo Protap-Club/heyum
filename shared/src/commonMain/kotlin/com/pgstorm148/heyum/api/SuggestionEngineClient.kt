@@ -24,25 +24,30 @@ class SuggestionEngineClient(
         val user = userRepository.getUserProfile(userId).firstOrNull() 
             ?: UserProfile(id = userId, name = "Yum User")
 
-        // Fetch candidate dishes
-        var allDishes = dishRepository.getDishesByContext(null, context.timeOfDay, context.weather).firstOrNull() 
-            ?: getFallbackDishPool()
-            
-        // Filter out rejected dishes and non-matching meal types
+        // Fetch candidate dishes. Fall back to the built-in catalog if Firestore returns a
+        // thin/empty list, so users always get a full, varied set to browse.
+        val remoteDishes = dishRepository.getDishesByContext(null, context.timeOfDay, context.weather).firstOrNull()
+        var allDishes = if ((remoteDishes?.size ?: 0) >= 10) remoteDishes!! else getFallbackDishPool()
+
+        // Keep dishes that aren't currently rejected and that fit this meal. A dish with no
+        // meal-type tags of its own is treated as suitable for any meal (most of the catalog
+        // is untagged, so tagging it out here would wrongly leave nothing to show).
         allDishes = allDishes.filter { dish ->
             !context.rejectedDishIds.contains(dish.id) &&
-            (context.mealTypeStr == "ALL" || dish.mealType.contains(context.mealTypeStr))
+                (context.mealTypeStr == "ALL" || dish.mealType.isEmpty() || dish.mealType.contains(context.mealTypeStr))
         }
 
-        // Get recommendations
-        val recommended = TasteProfileEngine.recommendDishes(user, allDishes, context)
-
-        if (recommended.isEmpty()) {
+        if (allDishes.isEmpty()) {
             return SuggestionResponse(
-                dishes = getFallbackDishPool().take(2),
+                dishes = getFallbackDishPool().shuffled().take(15),
                 reason = "Here are some popular warm options to help you settle in."
             )
         }
+
+        // Surface favourite-cuisine dishes first, but include everything (shuffled within each
+        // tier) so the deck stays varied and can keep revolving without running dry.
+        val (favourites, others) = allDishes.partition { user.favoriteCuisines.contains(it.cuisine) }
+        val recommended = (favourites.shuffled() + others.shuffled()).take(20)
 
         val topDish = recommended.first()
         val reason = generateCalmingReason(user, topDish, context)

@@ -107,7 +107,8 @@ actual class FirebaseFirestore actual constructor() {
 
         val registration = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                close(error)
+                error.printStackTrace()
+                trySend(emptyList())
                 return@addSnapshotListener
             }
             val list = snapshot?.documents?.mapNotNull { doc ->

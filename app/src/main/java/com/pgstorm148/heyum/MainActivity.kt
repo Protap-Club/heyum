@@ -41,6 +41,14 @@ class MainActivity : ComponentActivity() {
 
     private fun handleIntent(intent: Intent?) {
         if (intent == null) return
+
+        val joinCode = parseJoinCode(intent)
+        if (joinCode != null) {
+            activePayload = NotificationPayload(type = "group", groupId = joinCode)
+            intent.data = null
+            return
+        }
+
         val type = intent.getStringExtra("notification_type")
         if (type != null) {
             activePayload = NotificationPayload(
@@ -55,5 +63,14 @@ class MainActivity : ComponentActivity() {
             intent.removeExtra("group_id")
             intent.removeExtra("ingredient")
         }
+    }
+
+    /** Parses a shared https://heyum.co/join/<code> App Link into its 4-digit join code. */
+    private fun parseJoinCode(intent: Intent): String? {
+        val uri = intent.data ?: return null
+        val segments = uri.pathSegments
+        val joinIndex = segments.indexOf("join")
+        if (joinIndex == -1 || joinIndex + 1 >= segments.size) return null
+        return segments[joinIndex + 1]
     }
 }

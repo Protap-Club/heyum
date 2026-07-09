@@ -245,10 +245,19 @@ class IosUserRepository : UserRepository {
     }
 }
 
+class IosAmbienceRepository : AmbienceRepository {
+    // iOS ships with ambience off for now; Android drives the feature.
+    override fun observeAmbience() =
+        kotlinx.coroutines.flow.flowOf(AmbienceConfig.Default)
+}
+
 class IosGroupSessionRepository : GroupSessionRepository {
     override fun observeSession(code: String) = kotlinx.coroutines.flow.emptyFlow<GroupSession?>()
     override suspend fun createSession(session: GroupSession) {}
     override suspend fun joinSession(code: String, member: GroupMember) {}
     override suspend fun makeDecision(code: String, dishId: String) {}
-    override suspend fun cycleSuggestions(code: String, dishIds: List<String>) {}
+    override suspend fun updateSelection(code: String, userId: String, cuisine: String, dish: String) {}
+    override suspend fun startCollaboration(code: String) {}
+    override suspend fun endSession(code: String) {}
+    override suspend fun leaveSession(code: String, userId: String) {}
 }

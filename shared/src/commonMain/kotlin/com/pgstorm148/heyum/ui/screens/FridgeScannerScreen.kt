@@ -102,9 +102,12 @@ class FridgeScannerScreen(val prepopulatedIngredient: String? = null) : Screen {
 
         var selectedCategory by remember { mutableStateOf("Vegetables 🥦") }
 
-        // Fetch all dishes on startup to use for matching
+        // Fetch all dishes on startup to use for matching. Fall back to the built-in catalog if
+        // Firestore returns a thin list, otherwise ingredient matching only ever has a few dishes
+        // to choose from and keeps surfacing the same result.
         LaunchedEffect(Unit) {
-            val allDishes = dishRepository.getDishesByContext(null, TimeOfDay.EVENING, "rainy").firstOrNull() ?: emptyList()
+            val remoteDishes = dishRepository.getDishesByContext(null, TimeOfDay.EVENING, "rainy").firstOrNull()
+            val allDishes = if ((remoteDishes?.size ?: 0) >= 10) remoteDishes!! else getDefaultDishPool()
             dishesPool = allDishes
 
             // Load stored ingredients

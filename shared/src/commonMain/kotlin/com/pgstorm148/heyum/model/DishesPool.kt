@@ -694,16 +694,16 @@ fun getDefaultDishPool(): List<Dish> {
         ),
         Dish(
             id = "dish_042",
-            name = "Beef Corn Tacos",
+            name = "Chicken Tinga Tostadas",
             cuisine = Cuisine.MEXICAN,
-            description = "Traditional street-style tacos stuffed with spiced ground beef and fresh onions.",
+            description = "Crispy corn tortillas topped with shredded chicken simmered in a smoky chipotle-tomato sauce.",
             spiceLevel = 3,
-            prepTimeMinutes = 20,
-            difficulty = Difficulty.EASY,
-            ingredients = listOf("Corn tortillas", "Beef", "Onion", "Cilantro", "Lime"),
-            instructions = listOf("Brown ground beef in a pan with Mexican spices.", "Warm corn tortillas.", "Top tortillas with beef, chopped raw onions, fresh cilantro, and a squeeze of lime juice."),
+            prepTimeMinutes = 30,
+            difficulty = Difficulty.MEDIUM,
+            ingredients = listOf("Corn tostadas", "Shredded chicken breast", "Chipotle peppers in adobo", "Tomatoes", "Onions", "Refried beans", "Cotija cheese"),
+            instructions = listOf("Blend tomatoes, chipotle peppers, and garlic into a smooth sauce.", "Sauté sliced onions, add the sauce, and simmer with shredded chicken until thickened.", "Spread refried beans onto a crispy tostada shell.", "Top with the smoky chicken tinga and sprinkle with crumbled cotija cheese."),
             dietaryTags = listOf(DietaryRestriction.NON_VEG, DietaryRestriction.GLUTEN_FREE),
-            occasions = listOf("street food", "quick meal", "lunch"),
+            occasions = listOf("dinner", "party", "traditional"),
             orderingAvailable = true
         ),
         Dish(

@@ -172,8 +172,11 @@ class CravingLogScreen : Screen, KoinComponent {
 
     @Composable
     fun MealLogItem(mealType: MealType, entry: MealLogEntry?) {
+        val navigator = LocalNavigator.currentOrThrow
         Surface(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable {
+                navigator.push(MealSelectorScreen())
+            },
             color = Color(0xFF18181B),
             shape = RoundedCornerShape(12.dp),
             border = BorderStroke(1.dp, Color(0xFF27272A))

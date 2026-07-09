@@ -22,10 +22,13 @@ class AndroidDishRepository : DishRepository {
             query = query.whereEqualTo("cuisine", cuisine.name)
         }
         
-        // Real-time snapshot listener
+        // Real-time snapshot listener. Errors (permission hiccups, offline, etc.) degrade to an
+        // empty list rather than closing the flow with an exception — callers already treat an
+        // empty result as "nothing to show" and shouldn't have to handle a thrown exception too.
         val registration = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                close(error)
+                error.printStackTrace()
+                trySend(emptyList())
                 return@addSnapshotListener
             }
             val list = snapshot?.documents?.mapNotNull { doc ->
@@ -48,7 +51,8 @@ class AndroidUserRepository : UserRepository {
         val ref = db.collection("users").document(userId)
         val registration = ref.addSnapshotListener { doc, error ->
             if (error != null) {
-                close(error)
+                error.printStackTrace()
+                trySend(null)
                 return@addSnapshotListener
             }
             if (doc != null && doc.exists()) {
@@ -218,14 +222,38 @@ private fun MealContext.toMap(): Map<String, Any> {
     return map
 }
 
+class AndroidAmbienceRepository : AmbienceRepository {
+    private val db = AndroidFirestore.getInstance()
+
+    // Reads a single global document: config/ambience. Real-time, so console edits apply live.
+    override fun observeAmbience(): Flow<AmbienceConfig> = callbackFlow {
+        val ref = db.collection("config").document("ambience")
+        val registration = ref.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                error.printStackTrace()
+                trySend(AmbienceConfig.Default)
+                return@addSnapshotListener
+            }
+            val config = if (snapshot != null && snapshot.exists()) {
+                AmbienceConfig.fromMap(snapshot.data)
+            } else {
+                AmbienceConfig.Default
+            }
+            trySend(config)
+        }
+        awaitClose { registration.remove() }
+    }
+}
+
 class AndroidGroupSessionRepository : GroupSessionRepository {
     private val db = AndroidFirestore.getInstance()
 
     override fun observeSession(code: String): Flow<GroupSession?> = callbackFlow {
-        val ref = db.collection("sessions").whereEqualTo("code", code)
+        val ref = db.collection("sessions").whereEqualTo("joinCode", code)
         val registration = ref.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                close(error)
+                error.printStackTrace()
+                trySend(null)
                 return@addSnapshotListener
             }
             val doc = snapshot?.documents?.firstOrNull()
@@ -243,70 +271,113 @@ class AndroidGroupSessionRepository : GroupSessionRepository {
     }
 
     override suspend fun joinSession(code: String, member: GroupMember) {
-        val snapshot = db.collection("sessions").whereEqualTo("code", code).get().await()
-        val doc = snapshot.documents.firstOrNull()
-        if (doc != null && doc.exists()) {
-            doc.reference.update("members", FieldValue.arrayUnion(member.toMap())).await()
-        }
+        val snapshot = db.collection("sessions").whereEqualTo("joinCode", code).get().await()
+        val doc = snapshot.documents.firstOrNull() ?: return
+        if (!doc.exists()) return
+        val existingMembers = doc.toGroupSession().members
+        if (existingMembers.any { it.userId == member.userId }) return
+        doc.reference.update("members", FieldValue.arrayUnion(member.toMap())).await()
     }
 
     override suspend fun makeDecision(code: String, dishId: String) {
-        val snapshot = db.collection("sessions").whereEqualTo("code", code).get().await()
+        val snapshot = db.collection("sessions").whereEqualTo("joinCode", code).get().await()
         val doc = snapshot.documents.firstOrNull()
         if (doc != null && doc.exists()) {
-            doc.reference.update("finalDecision", dishId).await()
+            doc.reference.update(
+                mapOf(
+                    "finalDish" to dishId,
+                    "status" to "COMPLETED"
+                )
+            ).await()
         }
     }
 
-    override suspend fun cycleSuggestions(code: String, dishIds: List<String>) {
-        val snapshot = db.collection("sessions").whereEqualTo("code", code).get().await()
+    override suspend fun updateSelection(code: String, userId: String, cuisine: String, dish: String) {
+        val snapshot = db.collection("sessions").whereEqualTo("joinCode", code).get().await()
         val doc = snapshot.documents.firstOrNull()
         if (doc != null && doc.exists()) {
-            doc.reference.update("currentSuggestions", dishIds).await()
+            doc.reference.update(
+                mapOf(
+                    "selectedCuisines.$userId" to cuisine,
+                    "selectedDishes.$userId" to dish
+                )
+            ).await()
         }
+    }
+
+    override suspend fun startCollaboration(code: String) {
+        val snapshot = db.collection("sessions").whereEqualTo("joinCode", code).get().await()
+        val doc = snapshot.documents.firstOrNull()
+        if (doc != null && doc.exists()) {
+            doc.reference.update("status", "ACTIVE").await()
+        }
+    }
+
+    override suspend fun endSession(code: String) {
+        val snapshot = db.collection("sessions").whereEqualTo("joinCode", code).get().await()
+        val doc = snapshot.documents.firstOrNull()
+        if (doc != null && doc.exists()) {
+            doc.reference.update("status", "ENDED").await()
+        }
+    }
+
+    override suspend fun leaveSession(code: String, userId: String) {
+        val snapshot = db.collection("sessions").whereEqualTo("joinCode", code).get().await()
+        val doc = snapshot.documents.firstOrNull() ?: return
+        val session = doc.toGroupSession()
+        val remainingMembers = session.members.filter { it.userId != userId }
+        doc.reference.update("members", remainingMembers.map { it.toMap() }).await()
     }
 }
 
 private fun DocumentSnapshot.toGroupSession(): GroupSession {
     val membersList = (get("members") as? List<*>)?.mapNotNull { map ->
         val m = map as? Map<*, *> ?: return@mapNotNull null
-        val diets = (m["dietaryRestrictions"] as? List<*>)?.mapNotNull {
-            try { DietaryRestriction.valueOf(it.toString()) } catch (e: Exception) { null }
-        } ?: emptyList()
-        val cuisines = (m["favoriteCuisines"] as? List<*>)?.mapNotNull {
-            try { Cuisine.valueOf(it.toString()) } catch (e: Exception) { null }
-        } ?: emptyList()
+        val diets = (m["dietaryRestrictions"] as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
+        val cuisines = (m["favoriteCuisines"] as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
 
         GroupMember(
             userId = m["userId"]?.toString() ?: "",
             name = m["name"]?.toString() ?: "",
-            initials = m["initials"]?.toString() ?: "",
-            colorHex = m["colorHex"]?.toString() ?: "",
+            tasteProfile = m["tasteProfile"]?.toString() ?: "",
+            joinedAt = (m["joinedAt"] as? Number)?.toLong() ?: 0L,
+            isOrganizer = m["isOrganizer"] as? Boolean ?: false,
             dietaryRestrictions = diets,
-            favoriteCuisines = cuisines,
-            spiceTolerance = (m["spiceTolerance"] as? Number)?.toInt() ?: 3
+            spiceTolerance = (m["spiceTolerance"] as? Number)?.toInt() ?: 3,
+            favoriteCuisines = cuisines
         )
     } ?: emptyList()
 
     return GroupSession(
         id = id,
-        code = getString("code") ?: "",
-        hostId = getString("hostId") ?: "",
+        organizerId = getString("organizerId") ?: "",
+        organizerName = getString("organizerName") ?: "",
+        sessionName = getString("sessionName") ?: "",
+        createdAt = getLong("createdAt") ?: 0L,
+        mealType = getString("mealType") ?: "LUNCH",
         members = membersList,
-        currentSuggestions = (get("currentSuggestions") as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList(),
-        finalDecision = getString("finalDecision"),
-        expiresAt = getLong("expiresAt") ?: 0L
+        selectedCuisines = (get("selectedCuisines") as? Map<*, *>)?.mapKeys { it.key?.toString() ?: "" }?.mapValues { it.value?.toString() ?: "" } ?: emptyMap(),
+        selectedDishes = (get("selectedDishes") as? Map<*, *>)?.mapKeys { it.key?.toString() ?: "" }?.mapValues { it.value?.toString() ?: "" } ?: emptyMap(),
+        status = getString("status") ?: "WAITING",
+        finalDish = getString("finalDish") ?: "",
+        joinCode = getString("joinCode") ?: ""
     )
 }
 
 private fun GroupSession.toMap(): Map<String, Any> {
     val map = mutableMapOf<String, Any>()
-    map["code"] = code
-    map["hostId"] = hostId
+    map["id"] = id
+    map["organizerId"] = organizerId
+    map["organizerName"] = organizerName
+    map["sessionName"] = sessionName
+    map["createdAt"] = createdAt
+    map["mealType"] = mealType
     map["members"] = members.map { it.toMap() }
-    map["currentSuggestions"] = currentSuggestions
-    finalDecision?.let { map["finalDecision"] = it }
-    map["expiresAt"] = expiresAt
+    map["selectedCuisines"] = selectedCuisines
+    map["selectedDishes"] = selectedDishes
+    map["status"] = status
+    map["finalDish"] = finalDish
+    map["joinCode"] = joinCode
     return map
 }
 
@@ -314,11 +385,12 @@ private fun GroupMember.toMap(): Map<String, Any> {
     val map = mutableMapOf<String, Any>()
     map["userId"] = userId
     map["name"] = name
-    map["initials"] = initials
-    map["colorHex"] = colorHex
-    map["dietaryRestrictions"] = dietaryRestrictions.map { it.name }
-    map["favoriteCuisines"] = favoriteCuisines.map { it.name }
+    map["tasteProfile"] = tasteProfile
+    map["joinedAt"] = joinedAt
+    map["isOrganizer"] = isOrganizer
+    map["dietaryRestrictions"] = dietaryRestrictions
     map["spiceTolerance"] = spiceTolerance
+    map["favoriteCuisines"] = favoriteCuisines
     return map
 }
 
