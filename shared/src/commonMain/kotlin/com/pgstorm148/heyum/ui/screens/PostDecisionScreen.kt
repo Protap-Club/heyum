@@ -5,6 +5,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -34,7 +35,10 @@ import com.pgstorm148.heyum.delivery.dishSearchUrl
 import com.pgstorm148.heyum.delivery.getInstalledFoodDeliveryApps
 import com.pgstorm148.heyum.delivery.getInstalledQuickCommerceApps
 import com.pgstorm148.heyum.delivery.grocerySearchUrl
+import com.pgstorm148.heyum.delivery.logoResource
 import com.pgstorm148.heyum.delivery.openDeliveryApp
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 import com.pgstorm148.heyum.firebase.FirebaseAuth
 import com.pgstorm148.heyum.firebase.UserRepository
 import com.pgstorm148.heyum.model.*
@@ -448,34 +452,31 @@ class PostDecisionScreen(
                                             style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFFFFB74D))
                                         )
                                         Spacer(modifier = Modifier.height(10.dp))
-                                        if (installedGroceryApps.isEmpty()) {
-                                            Button(
-                                                onClick = {
-                                                    val query = missingIngredients.joinToString(" ").replace(" ", "+")
-                                                    uriHandler.openUri("https://blinkit.com/s/?q=$query")
-                                                },
-                                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryColor),
-                                                shape = RoundedCornerShape(12.dp),
-                                                modifier = Modifier.fillMaxWidth().height(48.dp)
-                                            ) {
-                                                Text("Order missing ingredients 🛒", color = SecondaryColor)
-                                            }
-                                        } else {
-                                            Text(
-                                                text = "Order the missing items in seconds:",
-                                                style = MaterialTheme.typography.labelMedium.copy(color = Color.White.copy(alpha = 0.7f)),
-                                                modifier = Modifier.padding(bottom = 8.dp)
-                                            )
-                                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                                installedGroceryApps.forEach { app ->
-                                                    RestaurantPriceRow(
-                                                        name = app.displayName,
-                                                        price = "",
-                                                        deliveryTime = "10 min",
-                                                        logo = app.emoji,
-                                                        onClick = { openDeliveryApp(app, app.grocerySearchUrl(missingIngredients)) }
-                                                    )
-                                                }
+                                        Text(
+                                            text = "Search each item where you shop:",
+                                            style = MaterialTheme.typography.labelMedium.copy(color = Color.White.copy(alpha = 0.7f)),
+                                            modifier = Modifier.padding(bottom = 10.dp)
+                                        )
+                                        // One row per ingredient — searched individually, since a single query
+                                        // combining every ingredient (e.g. "tomato onion paneer") returns nothing
+                                        // useful in these apps' search. Each app icon searches just that item.
+                                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                            missingIngredients.forEach { ingredient ->
+                                                IngredientSearchRow(
+                                                    ingredient = ingredient,
+                                                    apps = installedGroceryApps,
+                                                    onAppClick = { app ->
+                                                        val url = app.grocerySearchUrl(ingredient)
+                                                        if (url != null) {
+                                                            openDeliveryApp(app, url)
+                                                        } else {
+                                                            uriHandler.openUri("https://blinkit.com/s/?q=${ingredient.trim().replace(" ", "+")}")
+                                                        }
+                                                    },
+                                                    onFallbackClick = {
+                                                        uriHandler.openUri("https://blinkit.com/s/?q=${ingredient.trim().replace(" ", "+")}")
+                                                    }
+                                                )
                                             }
                                         }
                                     }
@@ -793,6 +794,7 @@ private fun OrderDishSection(
                             price = "",
                             deliveryTime = "",
                             logo = app.emoji,
+                            logoRes = app.logoResource(),
                             onClick = { openDeliveryApp(app, app.dishSearchUrl(dish.name)) }
                         )
                     }
@@ -808,6 +810,7 @@ fun RestaurantPriceRow(
     price: String,
     deliveryTime: String,
     logo: String,
+    logoRes: DrawableResource? = null,
     onClick: () -> Unit
 ) {
     Card(
@@ -826,7 +829,15 @@ fun RestaurantPriceRow(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text(text = logo, fontSize = 22.sp)
+                if (logoRes != null) {
+                    Image(
+                        painter = painterResource(logoRes),
+                        contentDescription = null,
+                        modifier = Modifier.size(28.dp).clip(RoundedCornerShape(8.dp))
+                    )
+                } else {
+                    Text(text = logo, fontSize = 22.sp)
+                }
                 Column {
                     Text(text = name, style = MaterialTheme.typography.bodyMedium.copy(color = Color.White, fontWeight = FontWeight.Bold))
                     if (deliveryTime.isNotBlank()) {
@@ -838,6 +849,68 @@ fun RestaurantPriceRow(
                 Text(text = price, style = MaterialTheme.typography.titleMedium.copy(color = PrimaryColor, fontWeight = FontWeight.ExtraBold))
             } else {
                 Text(text = "Open →", style = MaterialTheme.typography.labelMedium.copy(color = PrimaryColor, fontWeight = FontWeight.Bold))
+            }
+        }
+    }
+}
+
+/**
+ * One missing ingredient with a tap-target per installed grocery app, each searching that app for
+ * just this ingredient. Deliberately per-ingredient rather than one button per app searching all
+ * of them at once — a combined multi-word query (e.g. "tomato onion paneer") doesn't match a real
+ * product in these apps' search, so it has to be one search per item.
+ */
+@Composable
+fun IngredientSearchRow(
+    ingredient: String,
+    apps: List<DeliveryApp>,
+    onAppClick: (DeliveryApp) -> Unit,
+    onFallbackClick: () -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A2A)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = ingredient.replaceFirstChar { it.uppercase() },
+                style = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
+                modifier = Modifier.weight(1f)
+            )
+            if (apps.isEmpty()) {
+                Text(
+                    text = "Search →",
+                    style = MaterialTheme.typography.labelMedium.copy(color = PrimaryColor, fontWeight = FontWeight.Bold),
+                    modifier = Modifier.clickable(onClick = onFallbackClick)
+                )
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    apps.forEach { app ->
+                        val logoRes = app.logoResource()
+                        Box(
+                            modifier = Modifier
+                                .size(30.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { onAppClick(app) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (logoRes != null) {
+                                Image(
+                                    painter = painterResource(logoRes),
+                                    contentDescription = app.displayName,
+                                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp))
+                                )
+                            } else {
+                                Text(text = app.emoji, fontSize = 18.sp)
+                            }
+                        }
+                    }
+                }
             }
         }
     }
