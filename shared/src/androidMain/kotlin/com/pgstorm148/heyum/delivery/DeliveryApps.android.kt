@@ -24,8 +24,8 @@ private val CANDIDATE_APPS = listOf(
     DeliveryApp("zeptocafe", "Zepto Cafe", "com.zeptoconsumerapp", "https://www.zeptonow.com/cafe", DeliveryCategory.FOOD_DELIVERY, "☕"),
     DeliveryApp("swish", "Swish", "com.swishapp", "https://www.justswish.in", DeliveryCategory.FOOD_DELIVERY, "⚡"),
     DeliveryApp("toing", "Toing", "in.swiggy.android.toing", "https://www.swiggy.com", DeliveryCategory.FOOD_DELIVERY, "🍱"),
-    DeliveryApp("ownly", "Ownly by Rapido", "com.ownly.customer", "https://www.rapido.bike", DeliveryCategory.FOOD_DELIVERY, "🛺"),
-    DeliveryApp("eatclub", "EatClub", "com.poncho.eatclub", "https://www.eatclub.co.in", DeliveryCategory.FOOD_DELIVERY, "🍔")
+    DeliveryApp("ownly", "Ownly by Rapido", "com.ownly.customer", "https://ownly.food", DeliveryCategory.FOOD_DELIVERY, "🛺"),
+    DeliveryApp("eatclub", "EatClub", "com.poncho.eatclub", "https://eatclub.in", DeliveryCategory.FOOD_DELIVERY, "🍔")
 )
 
 actual fun getInstalledDeliveryApps(): List<DeliveryApp> {

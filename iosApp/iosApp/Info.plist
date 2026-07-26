@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>app-1-420053781260-ios-8164f37632284812615729</string>
+			</array>
+		</dict>
+	</array>
+	<!-- Required for canOpenURL() to detect installed food/grocery apps (see DeliveryApps.ios.kt).
+	     Without a scheme listed here, canOpenURL always returns false for it, regardless of
+	     whether the app is actually installed. Keep in sync with CANDIDATE_APPS there. -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>swiggy</string>
+		<string>zomato</string>
+		<string>zepto</string>
+		<string>blinkit</string>
+		<string>bigbasket</string>
+		<string>flipkart</string>
+		<string>com.amazon.mobile.shopping.web</string>
+		<string>swish</string>
+		<string>ownly</string>
+		<string>eatclub</string>
+	</array>
+</dict>
+</plist>

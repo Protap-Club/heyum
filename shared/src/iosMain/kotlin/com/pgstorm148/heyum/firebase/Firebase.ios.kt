@@ -35,11 +35,23 @@ interface IosUserRepositoryDelegate {
     fun updateTasteVector(userId: String, tasteVector: Map<String, Float>, completion: (String?) -> Unit)
 }
 
+interface IosGroupSessionRepositoryDelegate {
+    fun observeSession(code: String, onUpdate: (GroupSession?, String?) -> Unit): () -> Unit
+    fun createSession(session: GroupSession, completion: (String?) -> Unit)
+    fun joinSession(code: String, member: GroupMember, completion: (String?) -> Unit)
+    fun makeDecision(code: String, dishId: String, completion: (String?) -> Unit)
+    fun updateSelection(code: String, userId: String, cuisine: String, dish: String, completion: (String?) -> Unit)
+    fun startCollaboration(code: String, completion: (String?) -> Unit)
+    fun endSession(code: String, completion: (String?) -> Unit)
+    fun leaveSession(code: String, userId: String, completion: (String?) -> Unit)
+}
+
 object IosFirebaseBridge {
     var authDelegate: IosAuthDelegate? = null
     var firestoreDelegate: IosFirestoreDelegate? = null
     var dishRepositoryDelegate: IosDishRepositoryDelegate? = null
     var userRepositoryDelegate: IosUserRepositoryDelegate? = null
+    var groupSessionRepositoryDelegate: IosGroupSessionRepositoryDelegate? = null
     var messagingDelegate: IosMessagingDelegate? = null
 }
 
@@ -174,13 +186,24 @@ actual class FirebaseFirestore actual constructor() {
 }
 
 class IosDishRepository : DishRepository {
-    private val delegate: IosDishRepositoryDelegate
-        get() = IosFirebaseBridge.dishRepositoryDelegate ?: throw IllegalStateException("IosDishRepositoryDelegate is not initialized")
+    // Until Swift registers a delegate, this repo degrades gracefully (empty data) rather than
+    // crashing, so the app still launches on iOS.
+    private val delegate: IosDishRepositoryDelegate?
+        get() = IosFirebaseBridge.dishRepositoryDelegate
 
     override fun getDishesByContext(cuisine: Cuisine?, timeOfDay: TimeOfDay, weather: String): Flow<List<Dish>> = callbackFlow {
-        val unsubscribe = delegate.getDishesByContext(cuisine, timeOfDay, weather) { list, error ->
+        val d = delegate
+        if (d == null) {
+            trySend(emptyList())
+            awaitClose { }
+            return@callbackFlow
+        }
+        val unsubscribe = d.getDishesByContext(cuisine, timeOfDay, weather) { list, error ->
+            // Mirrors AndroidDishRepository: degrade to empty on error rather than closing the
+            // flow, since this is a long-lived listener (e.g. GroupSessionScreen keeps it open
+            // for the whole session) that should recover from a transient error, not die forever.
             if (error != null) {
-                close(Exception(error))
+                trySend(emptyList())
             } else if (list != null) {
                 trySend(list)
             }
@@ -188,23 +211,31 @@ class IosDishRepository : DishRepository {
         awaitClose { unsubscribe() }
     }
 
-    override suspend fun saveDish(dish: Dish) = suspendCancellableCoroutine<Unit> { continuation ->
-        delegate.saveDish(dish) { error ->
-            if (error != null) {
-                continuation.resumeWithException(Exception(error))
-            } else {
-                continuation.resume(Unit)
+    override suspend fun saveDish(dish: Dish) {
+        val d = delegate ?: return
+        suspendCancellableCoroutine<Unit> { continuation ->
+            d.saveDish(dish) { error ->
+                if (error != null) continuation.resumeWithException(Exception(error))
+                else continuation.resume(Unit)
             }
         }
     }
 }
 
 class IosUserRepository : UserRepository {
-    private val delegate: IosUserRepositoryDelegate
-        get() = IosFirebaseBridge.userRepositoryDelegate ?: throw IllegalStateException("IosUserRepositoryDelegate is not initialized")
+    // Degrades gracefully (null profile / no-op writes) when Swift hasn't registered a delegate,
+    // so the app launches on iOS instead of crashing.
+    private val delegate: IosUserRepositoryDelegate?
+        get() = IosFirebaseBridge.userRepositoryDelegate
 
     override fun getUserProfile(userId: String): Flow<UserProfile?> = callbackFlow {
-        val unsubscribe = delegate.getUserProfile(userId) { profile, error ->
+        val d = delegate
+        if (d == null) {
+            trySend(null)
+            awaitClose { }
+            return@callbackFlow
+        }
+        val unsubscribe = d.getUserProfile(userId) { profile, error ->
             if (error != null) {
                 close(Exception(error))
             } else {
@@ -214,32 +245,32 @@ class IosUserRepository : UserRepository {
         awaitClose { unsubscribe() }
     }
 
-    override suspend fun saveUserProfile(profile: UserProfile) = suspendCancellableCoroutine<Unit> { continuation ->
-        delegate.saveUserProfile(profile) { error ->
-            if (error != null) {
-                continuation.resumeWithException(Exception(error))
-            } else {
-                continuation.resume(Unit)
+    override suspend fun saveUserProfile(profile: UserProfile) {
+        val d = delegate ?: return
+        suspendCancellableCoroutine<Unit> { continuation ->
+            d.saveUserProfile(profile) { error ->
+                if (error != null) continuation.resumeWithException(Exception(error))
+                else continuation.resume(Unit)
             }
         }
     }
 
-    override suspend fun updateMealHistory(userId: String, entry: MealHistoryEntry) = suspendCancellableCoroutine<Unit> { continuation ->
-        delegate.updateMealHistory(userId, entry) { error ->
-            if (error != null) {
-                continuation.resumeWithException(Exception(error))
-            } else {
-                continuation.resume(Unit)
+    override suspend fun updateMealHistory(userId: String, entry: MealHistoryEntry) {
+        val d = delegate ?: return
+        suspendCancellableCoroutine<Unit> { continuation ->
+            d.updateMealHistory(userId, entry) { error ->
+                if (error != null) continuation.resumeWithException(Exception(error))
+                else continuation.resume(Unit)
             }
         }
     }
 
-    override suspend fun updateTasteVector(userId: String, tasteVector: Map<String, Float>) = suspendCancellableCoroutine<Unit> { continuation ->
-        delegate.updateTasteVector(userId, tasteVector) { error ->
-            if (error != null) {
-                continuation.resumeWithException(Exception(error))
-            } else {
-                continuation.resume(Unit)
+    override suspend fun updateTasteVector(userId: String, tasteVector: Map<String, Float>) {
+        val d = delegate ?: return
+        suspendCancellableCoroutine<Unit> { continuation ->
+            d.updateTasteVector(userId, tasteVector) { error ->
+                if (error != null) continuation.resumeWithException(Exception(error))
+                else continuation.resume(Unit)
             }
         }
     }
@@ -252,12 +283,91 @@ class IosAmbienceRepository : AmbienceRepository {
 }
 
 class IosGroupSessionRepository : GroupSessionRepository {
-    override fun observeSession(code: String) = kotlinx.coroutines.flow.emptyFlow<GroupSession?>()
-    override suspend fun createSession(session: GroupSession) {}
-    override suspend fun joinSession(code: String, member: GroupMember) {}
-    override suspend fun makeDecision(code: String, dishId: String) {}
-    override suspend fun updateSelection(code: String, userId: String, cuisine: String, dish: String) {}
-    override suspend fun startCollaboration(code: String) {}
-    override suspend fun endSession(code: String) {}
-    override suspend fun leaveSession(code: String, userId: String) {}
+    // Degrades gracefully (null session / no-op writes) when Swift hasn't registered a delegate,
+    // so the group flow never crashes — it just can't do anything until Swift is wired up.
+    private val delegate: IosGroupSessionRepositoryDelegate?
+        get() = IosFirebaseBridge.groupSessionRepositoryDelegate
+
+    override fun observeSession(code: String): Flow<GroupSession?> = callbackFlow {
+        val d = delegate
+        if (d == null) {
+            trySend(null)
+            awaitClose { }
+            return@callbackFlow
+        }
+        val unsubscribe = d.observeSession(code) { session, error ->
+            if (error != null) trySend(null) else trySend(session)
+        }
+        awaitClose { unsubscribe() }
+    }
+
+    override suspend fun createSession(session: GroupSession) {
+        val d = delegate ?: return
+        suspendCancellableCoroutine<Unit> { continuation ->
+            d.createSession(session) { error ->
+                if (error != null) continuation.resumeWithException(Exception(error))
+                else continuation.resume(Unit)
+            }
+        }
+    }
+
+    override suspend fun joinSession(code: String, member: GroupMember) {
+        val d = delegate ?: return
+        suspendCancellableCoroutine<Unit> { continuation ->
+            d.joinSession(code, member) { error ->
+                if (error != null) continuation.resumeWithException(Exception(error))
+                else continuation.resume(Unit)
+            }
+        }
+    }
+
+    override suspend fun makeDecision(code: String, dishId: String) {
+        val d = delegate ?: return
+        suspendCancellableCoroutine<Unit> { continuation ->
+            d.makeDecision(code, dishId) { error ->
+                if (error != null) continuation.resumeWithException(Exception(error))
+                else continuation.resume(Unit)
+            }
+        }
+    }
+
+    override suspend fun updateSelection(code: String, userId: String, cuisine: String, dish: String) {
+        val d = delegate ?: return
+        suspendCancellableCoroutine<Unit> { continuation ->
+            d.updateSelection(code, userId, cuisine, dish) { error ->
+                if (error != null) continuation.resumeWithException(Exception(error))
+                else continuation.resume(Unit)
+            }
+        }
+    }
+
+    override suspend fun startCollaboration(code: String) {
+        val d = delegate ?: return
+        suspendCancellableCoroutine<Unit> { continuation ->
+            d.startCollaboration(code) { error ->
+                if (error != null) continuation.resumeWithException(Exception(error))
+                else continuation.resume(Unit)
+            }
+        }
+    }
+
+    override suspend fun endSession(code: String) {
+        val d = delegate ?: return
+        suspendCancellableCoroutine<Unit> { continuation ->
+            d.endSession(code) { error ->
+                if (error != null) continuation.resumeWithException(Exception(error))
+                else continuation.resume(Unit)
+            }
+        }
+    }
+
+    override suspend fun leaveSession(code: String, userId: String) {
+        val d = delegate ?: return
+        suspendCancellableCoroutine<Unit> { continuation ->
+            d.leaveSession(code, userId) { error ->
+                if (error != null) continuation.resumeWithException(Exception(error))
+                else continuation.resume(Unit)
+            }
+        }
+    }
 }

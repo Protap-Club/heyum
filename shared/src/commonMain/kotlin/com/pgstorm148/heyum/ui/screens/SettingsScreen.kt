@@ -41,6 +41,7 @@ class SettingsScreen : Screen {
         val navigator = LocalNavigator.currentOrThrow
         val auth: FirebaseAuth = koinInject()
         val userRepository: UserRepository = koinInject()
+        val preferenceRepository: com.pgstorm148.heyum.engine.PreferenceRepository = koinInject()
         val coroutineScope = rememberCoroutineScope()
 
         var profile by remember { mutableStateOf<UserProfile?>(null) }
@@ -402,9 +403,8 @@ class SettingsScreen : Screen {
                             OutlinedButton(
                                 onClick = {
                                     coroutineScope.launch {
-                                        val preferenceRepo = org.koin.core.context.GlobalContext.get().get<com.pgstorm148.heyum.engine.PreferenceRepository>()
                                         try {
-                                            preferenceRepo.clearPreferences()
+                                            preferenceRepository.clearPreferences()
                                             showSaveFeedback = true
                                             delay(1500)
                                             showSaveFeedback = false

@@ -59,13 +59,15 @@ class CravingLogScreen : Screen, KoinComponent {
         }
 
         val groupedLogs = remember(filteredLogs) {
-            val map = filteredLogs.groupBy { entry ->
+            filteredLogs.groupBy { entry ->
                 val instant = Instant.fromEpochMilliseconds(entry.timestamp)
                 val dateTime = instant.toLocalDateTime(TimeZone.currentSystemDefault())
                 "${dateTime.year}-${dateTime.monthNumber.toString().padStart(2, '0')}-${dateTime.dayOfMonth.toString().padStart(2, '0')}"
             }
-            // Sort by descending keys (newest dates first)
-            map.toSortedMap(reverseOrder())
+                // Newest dates first. toSortedMap is JVM-only, so sort entries and rebuild an
+                // ordered map — works on both Android and iOS.
+                .entries.sortedByDescending { it.key }
+                .associate { it.key to it.value }
         }
 
         Scaffold(
