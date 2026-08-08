@@ -45,6 +45,7 @@ class GroupSessionScreen(private val joinCode: String) : Screen {
         val auth: FirebaseAuth = koinInject()
         val groupRepository: GroupSessionRepository = koinInject()
         val dishRepository: DishRepository = koinInject()
+        val widgetPublisher: com.pgstorm148.heyum.engine.WidgetPublisher = koinInject()
         val coroutineScope = rememberCoroutineScope()
         val clipboardManager = LocalClipboardManager.current
 
@@ -66,7 +67,16 @@ class GroupSessionScreen(private val joinCode: String) : Screen {
 
         LaunchedEffect(joinCode) {
             try {
-                groupRepository.observeSession(joinCode).collect { session = it }
+                groupRepository.observeSession(joinCode).collect {
+                    session = it
+                    // Surface a live session on the home-screen widget so members can hop back in;
+                    // drop it again once the session is over.
+                    if (it != null && it.status != "ENDED" && it.status != "COMPLETED") {
+                        widgetPublisher.publishSession(it.joinCode, it.sessionName)
+                    } else {
+                        widgetPublisher.clearSession()
+                    }
+                }
             } catch (e: Exception) {
                 loadError = e.message ?: "Lost connection while loading this session."
             }

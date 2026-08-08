@@ -1,3 +1,6 @@
+<!-- Monochrome silhouette of the heyum logo (smiling bowl + steam + heart) for the status bar.
+     Android requires alpha-only small icons, so this mirrors the launcher icon's shapes rather
+     than its colors; the full-color launcher icon is shown separately via setLargeIcon. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -17,15 +20,18 @@
         android:strokeWidth="1.4"
         android:strokeLineCap="round"
         android:pathData="M12,9.5 c-1.2,-1.4 1.2,-2 0,-3.4 c-1.2,-1.4 1.2,-2 0,-3.4" />
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="1.4"
-        android:strokeLineCap="round"
-        android:pathData="M15.5,9.5 c-1.2,-1.4 1.2,-2 0,-3.4 c-1.2,-1.4 1.2,-2 0,-3.4" />
 
-    <!-- Bowl (flat rim at the top, rounded body below) -->
+    <!-- Little heart, top-right, matching the logo's heart accent -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M3,11.5 h18 a9,9 0 0 1 -18,0 Z" />
+        android:pathData="M17.6,5.6 c-0.5,-0.6 -1.5,-0.5 -1.8,0.2 c-0.3,0.6 0.1,1.3 1.5,2.4 c1.5,-0.6 2.1,-1.2 2,-1.9 c-0.1,-0.8 -1.2,-1.1 -1.7,-0.7 Z" />
+
+    <!-- Bowl with the logo's face cut out (winking eye, round eye, smile) -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M3,11.5 h18 a9,9 0 0 1 -18,0 Z
+            M7.7,14.7 L9,13.3 L10.3,14.7 L9.6,15.4 L9,14.8 L8.4,15.4 Z
+            M15,13.2 a0.95,0.95 0 1 1 -0.01,0 Z
+            M10.2,16.4 Q12,18.6 13.8,16.4 Q12,17.5 10.2,16.4 Z" />
 </vector>

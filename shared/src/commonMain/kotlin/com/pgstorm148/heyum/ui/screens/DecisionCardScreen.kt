@@ -69,7 +69,8 @@ class DecisionCardScreenModel(
     private val groupRepository: GroupSessionRepository,
     private val widgetCache: WidgetCache,
     private val preferenceRepository: com.pgstorm148.heyum.engine.PreferenceRepository,
-    private val mealLogRepository: com.pgstorm148.heyum.engine.MealLogRepository
+    private val mealLogRepository: com.pgstorm148.heyum.engine.MealLogRepository,
+    private val widgetPublisher: com.pgstorm148.heyum.engine.WidgetPublisher
 ) : ScreenModel {
 
     private val _state = MutableStateFlow<DecisionState>(DecisionState.Loading)
@@ -348,6 +349,8 @@ class DecisionCardScreenModel(
                         rating = null
                     )
                     mealLogRepository.insert(entry)
+                    // Keep the home-screen widget's "meals logged" pane in step with the log.
+                    mealLogRepository.getTodayLogs().firstOrNull()?.let { widgetPublisher.publishMeals(it) }
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
@@ -362,10 +365,13 @@ class DecisionCardScreenModel(
     }
 
     private suspend fun prepopulateDishesIfEmpty() {
+        // Upsert any pool dish missing from Firestore, not just when the collection is empty.
+        // The old empty-only check meant a collection seeded from an older, smaller pool never
+        // received dishes added to the pool later — users stayed stuck on the original catalog.
         val currentDishes = dishRepository.getDishesByContext(null, TimeOfDay.EVENING, "rainy").firstOrNull()
-        if (currentDishes.isNullOrEmpty()) {
-            val defaultPool = getDefaultDishPool()
-            for (dish in defaultPool) {
+        val existingIds = currentDishes.orEmpty().map { it.id }.toSet()
+        for (dish in getDefaultDishPool()) {
+            if (dish.id !in existingIds) {
                 try {
                     dishRepository.saveDish(dish)
                 } catch (e: Exception) {

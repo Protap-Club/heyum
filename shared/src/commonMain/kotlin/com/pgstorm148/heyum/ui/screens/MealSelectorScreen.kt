@@ -20,7 +20,11 @@ import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import com.pgstorm148.heyum.engine.MealLogRepository
+import com.pgstorm148.heyum.engine.WidgetPublisher
+import com.pgstorm148.heyum.firebase.FirebaseAuth
+import com.pgstorm148.heyum.firebase.FirebaseFirestore
 import com.pgstorm148.heyum.model.MealType
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -33,8 +37,29 @@ class MealSelectorScreen : Screen, KoinComponent {
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         val mealLogRepository: MealLogRepository by inject()
+        val widgetPublisher: WidgetPublisher by inject()
+        val auth: FirebaseAuth by inject()
+        val db: FirebaseFirestore by inject()
 
         val todayLogs by mealLogRepository.getTodayLogs().collectAsState(initial = emptyList())
+
+        // This hub is the screen every signed-in user lands on, so it's where the home-screen
+        // widget gets kept up to date. Publishing only from HomeScreen/DecisionCardScreen (as it
+        // was) meant users who never opened those saw a permanently empty widget.
+        LaunchedEffect(todayLogs) {
+            widgetPublisher.publishMeals(todayLogs)
+        }
+
+        LaunchedEffect(Unit) {
+            val uid = auth.currentUser.firstOrNull()?.uid ?: auth.currentCachedUser?.uid
+            if (uid != null) {
+                try {
+                    db.observeCravings(uid).collect { widgetPublisher.publishCravings(it) }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
         val completedMeals = todayLogs.map { it.mealType }.distinct()
         val allMeals = listOf("BREAKFAST", "LUNCH", "SNACKS", "DINNER")
         val missingMeals = allMeals.filter { it !in completedMeals }

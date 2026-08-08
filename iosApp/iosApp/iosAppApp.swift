@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import UserNotifications
+import WidgetKit
 import FirebaseCore
 import FirebaseAuth
 import FirebaseFirestore
@@ -756,6 +757,12 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         IosFirebaseBridge.shared.dishRepositoryDelegate = SwiftDishRepositoryDelegate()
         IosFirebaseBridge.shared.userRepositoryDelegate = SwiftUserRepositoryDelegate()
         IosFirebaseBridge.shared.groupSessionRepositoryDelegate = SwiftGroupSessionDelegate()
+
+        // WidgetKit has no Kotlin/Native bindings, so shared code calls back through here to
+        // refresh the home-screen widget after it writes new data to the App Group.
+        IosWidgetRefreshBridge.shared.reloadTimelines = {
+            WidgetCenter.shared.reloadAllTimelines()
+        }
 
         MealNotificationScheduler.requestAuthorization()
         // didFinishLaunching can run before Firebase restores the signed-in user, in which case

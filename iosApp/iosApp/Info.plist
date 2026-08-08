@@ -14,6 +14,18 @@
 				<string>app-1-420053781260-ios-8164f37632284812615729</string>
 			</array>
 		</dict>
+		<!-- Used by the home-screen widget's tap targets (heyum://widget/...), parsed in
+		     ContentView.WidgetRoute. -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.pgstorm148.heyum.widget</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>heyum</string>
+			</array>
+		</dict>
 	</array>
 	<!-- Required for canOpenURL() to detect installed food/grocery apps (see DeliveryApps.ios.kt).
 	     Without a scheme listed here, canOpenURL always returns false for it, regardless of
@@ -30,6 +42,23 @@
 		<string>swish</string>
 		<string>ownly</string>
 		<string>eatclub</string>
+	</array>
+	<!-- Home-screen quick action shown when the user long-presses the app icon.
+	     Placement note: iOS renders custom quick actions above its own system items (Edit Home
+	     Screen / Remove App / Share App) and gives no API to position one relative to them, so
+	     this cannot sit immediately before "Remove App". -->
+	<key>UIApplicationShortcutItems</key>
+	<array>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.pgstorm148.heyum.stay</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Tussi na jao</string>
+			<key>UIApplicationShortcutItemSubtitle</key>
+			<string>Tussi ja rahe ho?</string>
+			<key>UIApplicationShortcutItemIconType</key>
+			<string>UIApplicationShortcutIconTypeLove</string>
+		</dict>
 	</array>
 </dict>
 </plist>

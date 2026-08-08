@@ -77,6 +77,15 @@ class WelcomeScreen(val initialNotificationPayload: NotificationPayload? = null)
                                 navigator.replace(MealSelectorScreen())
                                 navigator.push(FridgeScannerScreen(prepopulatedIngredient = payload.ingredient))
                             }
+                            // Home-screen widget panes: jump straight to the matching log.
+                            "craving_log" -> {
+                                navigator.replace(MealSelectorScreen())
+                                navigator.push(HomeScreen())
+                            }
+                            "meal_log" -> {
+                                navigator.replace(MealSelectorScreen())
+                                navigator.push(CravingLogScreen())
+                            }
                             else -> {
                                 navigator.replace(MealSelectorScreen())
                             }

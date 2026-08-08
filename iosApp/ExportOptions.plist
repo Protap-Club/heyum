@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Export settings for App Store / TestFlight builds, used by scripts/ios-release.sh.
+     signingStyle=automatic lets Xcode fetch or create the provisioning profiles for both the app
+     and the widget extension, which avoids hand-managing two profiles that expire independently. -->
+<plist version="1.0">
+<dict>
+	<key>method</key>
+	<string>app-store-connect</string>
+	<key>teamID</key>
+	<string>H58VG6UP2D</string>
+	<key>signingStyle</key>
+	<string>automatic</string>
+	<key>uploadSymbols</key>
+	<true/>
+	<!-- Bitcode is long dead; leaving it on makes newer Xcode versions warn. -->
+	<key>compileBitcode</key>
+	<false/>
+	<key>destination</key>
+	<string>export</string>
+</dict>
+</plist>
