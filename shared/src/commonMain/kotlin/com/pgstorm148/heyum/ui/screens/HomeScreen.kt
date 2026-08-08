@@ -40,6 +40,7 @@ class HomeScreen : Screen {
         val auth: FirebaseAuth = koinInject()
         val authRepository: AuthRepository = koinInject()
         val db: FirebaseFirestore = koinInject()
+        val widgetPublisher: com.pgstorm148.heyum.engine.WidgetPublisher = koinInject()
         val coroutineScope = rememberCoroutineScope()
 
         val currentUserState by authRepository.currentUser.collectAsState()
@@ -60,6 +61,7 @@ class HomeScreen : Screen {
             if (uid != null) {
                 db.observeCravings(uid).collect { list ->
                     cravings = list
+                    widgetPublisher.publishCravings(list)
                 }
             }
         }

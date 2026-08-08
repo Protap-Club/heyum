@@ -1,0 +1,91 @@
+name: iOS Release
+
+# Manual trigger, or push a tag like ios-v1.1 to ship that commit.
+#
+# Requires these repository secrets (Settings → Secrets and variables → Actions):
+#   ASC_KEY_ID          App Store Connect API key id (10 chars)
+#   ASC_ISSUER_ID       App Store Connect issuer id (UUID)
+#   ASC_PRIVATE_KEY_B64 base64 of the AuthKey_XXXX.p8:  openssl base64 < AuthKey.p8 | tr -d '\n'
+#
+# Signing uses -allowProvisioningUpdates with the same API key, so no .p12 or
+# provisioning-profile secrets are needed — Xcode fetches/creates them itself.
+# See docs/IOS_CD.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: "Build number (blank = auto-increment from project)"
+        required: false
+        type: string
+  push:
+    tags:
+      - "ios-v*"
+
+jobs:
+  release:
+    runs-on: macos-15
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.konan
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml') }}
+          restore-keys: ${{ runner.os }}-gradle-
+
+      - name: Install asc
+        run: brew install asc
+
+      # The API key doubles as the signing credential for -allowProvisioningUpdates,
+      # so it has to exist on disk as a .p8 as well as in asc's config.
+      - name: Configure App Store Connect credentials
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY_B64: ${{ secrets.ASC_PRIVATE_KEY_B64 }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys ~/.asc
+          echo "$ASC_PRIVATE_KEY_B64" | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          asc auth login \
+            --name ci \
+            --key-id "$ASC_KEY_ID" \
+            --issuer-id "$ASC_ISSUER_ID" \
+            --private-key ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8 \
+            --bypass-keychain
+          asc auth status --validate
+
+      - name: Build, export and upload
+        env:
+          # xcodebuild reads these for -allowProvisioningUpdates.
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          ARGS=""
+          if [ -n "${{ inputs.build_number }}" ]; then
+            ARGS="--build ${{ inputs.build_number }}"
+          fi
+          ./scripts/ios-release.sh $ARGS
+
+      - name: Upload artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-logs
+          path: build/ios-release
+          retention-days: 5

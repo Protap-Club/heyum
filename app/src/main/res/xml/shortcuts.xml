@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- App-icon long-press shortcut.
+     Note on placement: launchers render app shortcuts in their own section of the long-press
+     popup and draw "App info / Uninstall / Share" as a separate system row. There is no API to
+     insert a shortcut between those system buttons, so this appears in the shortcut list above
+     them rather than immediately before Uninstall. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="stay_with_us"
+        android:enabled="true"
+        android:icon="@drawable/ic_notification"
+        android:shortcutShortLabel="@string/shortcut_stay_short"
+        android:shortcutLongLabel="@string/shortcut_stay_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.pgstorm148.heyum"
+            android:targetClass="com.pgstorm148.heyum.MainActivity" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+</shortcuts>

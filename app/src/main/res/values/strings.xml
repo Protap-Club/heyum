@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">heyum</string>
+    <string name="widget_description">Your craving log, logged meals, and live group session.</string>
+
+    <!-- App-icon long-press shortcut. Launchers truncate the visible label hard, so the short
+         label carries the punchline and the long label carries the full line. -->
+    <string name="shortcut_stay_short">Tussi na jao</string>
+    <string name="shortcut_stay_long">Tussi ja rahe ho? Tussi na jao</string>
 </resources>

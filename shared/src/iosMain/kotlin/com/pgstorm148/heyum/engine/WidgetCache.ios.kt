@@ -18,6 +18,20 @@ actual class WidgetCache actual constructor() {
     }
 }
 
+/**
+ * Set from Swift at startup to `WidgetCenter.shared.reloadAllTimelines`.
+ *
+ * WidgetKit has no Kotlin/Native bindings, so the reload has to be bounced through Swift the same
+ * way the Firebase delegates are. Left null the widget simply refreshes on its own timeline.
+ */
+object IosWidgetRefreshBridge {
+    var reloadTimelines: (() -> Unit)? = null
+}
+
 actual fun triggerWidgetUpdate() {
-    // No-op for iOS bridge testing
+    try {
+        IosWidgetRefreshBridge.reloadTimelines?.invoke()
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
 }

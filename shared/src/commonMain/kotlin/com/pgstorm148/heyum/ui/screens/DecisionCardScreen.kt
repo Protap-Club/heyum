@@ -69,7 +69,8 @@ class DecisionCardScreenModel(
     private val groupRepository: GroupSessionRepository,
     private val widgetCache: WidgetCache,
     private val preferenceRepository: com.pgstorm148.heyum.engine.PreferenceRepository,
-    private val mealLogRepository: com.pgstorm148.heyum.engine.MealLogRepository
+    private val mealLogRepository: com.pgstorm148.heyum.engine.MealLogRepository,
+    private val widgetPublisher: com.pgstorm148.heyum.engine.WidgetPublisher
 ) : ScreenModel {
 
     private val _state = MutableStateFlow<DecisionState>(DecisionState.Loading)
@@ -348,6 +349,8 @@ class DecisionCardScreenModel(
                         rating = null
                     )
                     mealLogRepository.insert(entry)
+                    // Keep the home-screen widget's "meals logged" pane in step with the log.
+                    mealLogRepository.getTodayLogs().firstOrNull()?.let { widgetPublisher.publishMeals(it) }
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
