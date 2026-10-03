@@ -324,6 +324,55 @@ class SwiftUserRepositoryDelegate: NSObject, IosUserRepositoryDelegate {
     }
 }
 
+// Mirrors AndroidAmbienceRepository: a single global doc, config/ambience, watched in real time
+// so console edits apply live. Parsing is left to shared code (AmbienceConfig.fromMap) rather than
+// duplicated here, so the field mapping can't drift between platforms.
+class SwiftAmbienceRepositoryDelegate: NSObject, IosAmbienceRepositoryDelegate {
+    private let db = Firestore.firestore()
+
+    func observeAmbience(onUpdate: @escaping ([String: Any]?, String?) -> Void) -> () -> Void {
+        let ref = db.collection("config").document("ambience")
+        let listener = ref.addSnapshotListener { doc, error in
+            if let error = error {
+                onUpdate(nil, error.localizedDescription)
+                return
+            }
+            guard let doc = doc, doc.exists else {
+                onUpdate(nil, nil)
+                return
+            }
+            onUpdate(doc.data(), nil)
+        }
+        return {
+            listener.remove()
+        }
+    }
+}
+
+// Floating promo popup config: a single global doc, config/promo, watched in real time so console
+// edits apply live. Parsing is left to shared code (PromoConfig.fromMap).
+class SwiftPromoRepositoryDelegate: NSObject, IosPromoRepositoryDelegate {
+    private let db = Firestore.firestore()
+
+    func observePromo(onUpdate: @escaping ([String: Any]?, String?) -> Void) -> () -> Void {
+        let ref = db.collection("config").document("promo")
+        let listener = ref.addSnapshotListener { doc, error in
+            if let error = error {
+                onUpdate(nil, error.localizedDescription)
+                return
+            }
+            guard let doc = doc, doc.exists else {
+                onUpdate(nil, nil)
+                return
+            }
+            onUpdate(doc.data(), nil)
+        }
+        return {
+            listener.remove()
+        }
+    }
+}
+
 // Mirrors AndroidDishRepository's Firestore shape exactly (collection "dishes", optional cuisine
 // filter). Without this, IosDishRepository always returned an empty list on iOS — invisible on
 // the main swipe screen (which falls back to a local dish pool via SuggestionEngineClient), but
@@ -756,6 +805,8 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         IosFirebaseBridge.shared.firestoreDelegate = SwiftFirestoreDelegate()
         IosFirebaseBridge.shared.dishRepositoryDelegate = SwiftDishRepositoryDelegate()
         IosFirebaseBridge.shared.userRepositoryDelegate = SwiftUserRepositoryDelegate()
+        IosFirebaseBridge.shared.ambienceRepositoryDelegate = SwiftAmbienceRepositoryDelegate()
+        IosFirebaseBridge.shared.promoRepositoryDelegate = SwiftPromoRepositoryDelegate()
         IosFirebaseBridge.shared.groupSessionRepositoryDelegate = SwiftGroupSessionDelegate()
 
         // WidgetKit has no Kotlin/Native bindings, so shared code calls back through here to

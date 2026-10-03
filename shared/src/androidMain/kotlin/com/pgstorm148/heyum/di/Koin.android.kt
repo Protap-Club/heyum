@@ -11,4 +11,5 @@ actual val platformModule: Module = module {
     single<UserRepository> { AndroidUserRepository() }
     single<GroupSessionRepository> { AndroidGroupSessionRepository() }
     single<AmbienceRepository> { AndroidAmbienceRepository() }
+    single<PromoRepository> { AndroidPromoRepository() }
 }

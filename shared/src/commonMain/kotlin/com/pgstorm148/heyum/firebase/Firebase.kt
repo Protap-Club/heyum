@@ -42,6 +42,11 @@ interface AmbienceRepository {
     fun observeAmbience(): Flow<AmbienceConfig>
 }
 
+interface PromoRepository {
+    /** Emits the server-driven promo popup config; degrades to [PromoConfig.Default] on error. */
+    fun observePromo(): Flow<PromoConfig>
+}
+
 interface GroupSessionRepository {
     fun observeSession(code: String): Flow<GroupSession?>
     suspend fun createSession(session: GroupSession)
