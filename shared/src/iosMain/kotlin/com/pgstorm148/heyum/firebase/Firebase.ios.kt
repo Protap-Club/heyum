@@ -39,6 +39,10 @@ interface IosAmbienceRepositoryDelegate {
     fun observeAmbience(onUpdate: (Map<String, Any?>?, String?) -> Unit): () -> Unit
 }
 
+interface IosPromoRepositoryDelegate {
+    fun observePromo(onUpdate: (Map<String, Any?>?, String?) -> Unit): () -> Unit
+}
+
 interface IosGroupSessionRepositoryDelegate {
     fun observeSession(code: String, onUpdate: (GroupSession?, String?) -> Unit): () -> Unit
     fun createSession(session: GroupSession, completion: (String?) -> Unit)
@@ -56,6 +60,7 @@ object IosFirebaseBridge {
     var dishRepositoryDelegate: IosDishRepositoryDelegate? = null
     var userRepositoryDelegate: IosUserRepositoryDelegate? = null
     var ambienceRepositoryDelegate: IosAmbienceRepositoryDelegate? = null
+    var promoRepositoryDelegate: IosPromoRepositoryDelegate? = null
     var groupSessionRepositoryDelegate: IosGroupSessionRepositoryDelegate? = null
     var messagingDelegate: IosMessagingDelegate? = null
 }
@@ -299,6 +304,29 @@ class IosAmbienceRepository : AmbienceRepository {
                 trySend(AmbienceConfig.Default)
             } else {
                 trySend(AmbienceConfig.fromMap(data))
+            }
+        }
+        awaitClose { unsubscribe() }
+    }
+}
+
+class IosPromoRepository : PromoRepository {
+    // Degrades to PromoConfig.Default (popup hidden) when Swift hasn't registered a delegate.
+    private val delegate: IosPromoRepositoryDelegate?
+        get() = IosFirebaseBridge.promoRepositoryDelegate
+
+    override fun observePromo(): Flow<PromoConfig> = callbackFlow {
+        val d = delegate
+        if (d == null) {
+            trySend(PromoConfig.Default)
+            awaitClose { }
+            return@callbackFlow
+        }
+        val unsubscribe = d.observePromo { data, error ->
+            if (error != null) {
+                trySend(PromoConfig.Default)
+            } else {
+                trySend(PromoConfig.fromMap(data))
             }
         }
         awaitClose { unsubscribe() }

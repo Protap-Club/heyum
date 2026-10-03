@@ -45,6 +45,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
+import com.pgstorm148.heyum.ui.components.PromoPopup
 import org.koin.compose.koinInject
 import kotlin.random.Random
 
@@ -766,6 +767,9 @@ class DecisionCardScreen(
             // Decorative ambience, drawn OVER the content (so rain/snow fall across the whole
             // screen) but UNDER the modals below. Non-interactive: touches pass through to the card.
             AmbienceOverlay(ambienceConfig, Modifier.fillMaxSize())
+
+            // Server-driven promo video (config/promo). Above the content, below the modals.
+            PromoPopup()
 
             if (showGroupBottomSheet) {
                 GroupModeBottomSheet(

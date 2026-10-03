@@ -245,6 +245,29 @@ class AndroidAmbienceRepository : AmbienceRepository {
     }
 }
 
+class AndroidPromoRepository : PromoRepository {
+    private val db = AndroidFirestore.getInstance()
+
+    // Single global document: config/promo. Real-time, so console edits apply live.
+    override fun observePromo(): Flow<PromoConfig> = callbackFlow {
+        val ref = db.collection("config").document("promo")
+        val registration = ref.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                error.printStackTrace()
+                trySend(PromoConfig.Default)
+                return@addSnapshotListener
+            }
+            val config = if (snapshot != null && snapshot.exists()) {
+                PromoConfig.fromMap(snapshot.data)
+            } else {
+                PromoConfig.Default
+            }
+            trySend(config)
+        }
+        awaitClose { registration.remove() }
+    }
+}
+
 class AndroidGroupSessionRepository : GroupSessionRepository {
     private val db = AndroidFirestore.getInstance()
 

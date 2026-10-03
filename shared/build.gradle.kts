@@ -55,6 +55,9 @@ kotlin {
             implementation(libs.firebase.firestore)
             implementation(libs.firebase.messaging)
             implementation(libs.androidx.activity.compose)
+            // Promo popup video player (streams from Firebase Storage)
+            implementation(libs.media3.exoplayer)
+            implementation(libs.media3.ui)
         }
         
         iosMain.dependencies {
