@@ -1,0 +1,151 @@
+filename,dish_id,name,cuisine,suggested_source
+palak_paneer.jpg,palak_paneer,Palak Paneer,INDIAN,ai-generate
+ginger_tea.jpg,ginger_tea,Ginger Cardamom Chai,COMFORT,ai-generate
+garlic_noodles.jpg,garlic_noodles,Chili Garlic Noodles,CHINESE,stock
+classic_minestrone.jpg,classic_minestrone,Classic Minestrone Soup,HEALTHY,stock
+tacos_al_pastor.jpg,tacos_al_pastor,Mushroom Street Tacos,MEXICAN,stock
+butter_chicken.jpg,butter_chicken,Butter Chicken,INDIAN,ai-generate
+sushi_roll.jpg,sushi_roll,Sushi Roll (Avocado & Cucumber),JAPANESE,stock
+avocado_toast.jpg,avocado_toast,Sourdough Avocado Toast,HEALTHY,stock
+masala_dosa.jpg,masala_dosa,Classic Masala Dosa,INDIAN,ai-generate
+matcha_latte.jpg,matcha_latte,Soothing Matcha Latte,COMFORT,ai-generate
+pad_thai.jpg,pad_thai,Classic Pad Thai,THAI,stock
+margherita_pizza.jpg,margherita_pizza,Neapolitan Margherita Pizza,ITALIAN,stock
+hummus_platter.jpg,hummus_platter,Mediterranean Hummus Platter,MEDITERRANEAN,stock
+sticky_rice.jpg,sticky_rice,Mango Sticky Rice,THAI,stock
+chicken_biryani.jpg,chicken_biryani,Aromatic Chicken Biryani,INDIAN,ai-generate
+caesar_salad.jpg,caesar_salad,Classic Caesar Salad,HEALTHY,stock
+french_fries.jpg,french_fries,Crispy French Fries,FAST_FOOD,stock
+pancakes.jpg,pancakes,Buttermilk Pancakes,COMFORT,ai-generate
+greek_salad.jpg,greek_salad,Greek Salad,MEDITERRANEAN,stock
+chicken_quesadilla.jpg,chicken_quesadilla,Cheesy Chicken Quesadilla,MEXICAN,stock
+dish_021.jpg,dish_021,Veg Fried Rice,CHINESE,stock
+dish_022.jpg,dish_022,Chicken Tikka,INDIAN,ai-generate
+dish_023.jpg,dish_023,Garlic Bread,ITALIAN,stock
+dish_024.jpg,dish_024,Creamy Tomato Soup,COMFORT,ai-generate
+dish_025.jpg,dish_025,Classic Chicken Soup,COMFORT,ai-generate
+dish_026.jpg,dish_026,Tandoori Chicken,INDIAN,ai-generate
+dish_027.jpg,dish_027,Aloo Gobhi,INDIAN,ai-generate
+dish_028.jpg,dish_028,Paneer Bhurji,INDIAN,ai-generate
+dish_029.jpg,dish_029,Vegetable Pulao,INDIAN,ai-generate
+dish_030.jpg,dish_030,Spicy Chicken Wrap,COMFORT,ai-generate
+dish_031.jpg,dish_031,Falafel Wrap,MEDITERRANEAN,stock
+dish_032.jpg,dish_032,Oatmeal Berry Bowl,HEALTHY,stock
+dish_033.jpg,dish_033,Scrambled Eggs Toast,HEALTHY,stock
+dish_034.jpg,dish_034,Banana Honey Smoothie,HEALTHY,stock
+dish_035.jpg,dish_035,Grilled Cheese Sandwich,COMFORT,ai-generate
+dish_036.jpg,dish_036,Caprese Salad Platter,ITALIAN,stock
+dish_037.jpg,dish_037,German Potato Salad,MEDITERRANEAN,stock
+dish_038.jpg,dish_038,Grilled Chicken Salad,HEALTHY,stock
+dish_039.jpg,dish_039,Red Lentil Soup,HEALTHY,stock
+dish_040.jpg,dish_040,Vegetable Clear Soup,HEALTHY,stock
+dish_041.jpg,dish_041,Garlic Prawns,MEDITERRANEAN,stock
+dish_042.jpg,dish_042,Chicken Tinga Tostadas,MEXICAN,stock
+dish_043.jpg,dish_043,Ultimate Veg Burger,FAST_FOOD,stock
+dish_044.jpg,dish_044,Crispy Chicken Burger,FAST_FOOD,stock
+dish_045.jpg,dish_045,Fried Spring Rolls,CHINESE,stock
+dish_046.jpg,dish_046,Steamed Veg Dumplings,CHINESE,stock
+dish_047.jpg,dish_047,Crispy Onion Rings,FAST_FOOD,stock
+dish_048.jpg,dish_048,Belgian Waffles,COMFORT,ai-generate
+dish_049.jpg,dish_049,Classic Club Sandwich,COMFORT,ai-generate
+dish_050.jpg,dish_050,Honey Fruit Salad,HEALTHY,stock
+dish_051.jpg,dish_051,Malai Kofta,INDIAN,ai-generate
+dish_052.jpg,dish_052,Dal Tadka,INDIAN,ai-generate
+dish_053.jpg,dish_053,Baingan Bharta,INDIAN,ai-generate
+dish_054.jpg,dish_054,Classic Chicken Curry,INDIAN,ai-generate
+dish_055.jpg,dish_055,Mutton Rogan Josh,INDIAN,ai-generate
+dish_056.jpg,dish_056,Goan Fish Curry,INDIAN,ai-generate
+dish_057.jpg,dish_057,Prawn Masala,INDIAN,ai-generate
+dish_058.jpg,dish_058,Paneer Tikka Masala,INDIAN,ai-generate
+dish_059.jpg,dish_059,Kashmiri Dum Aloo,INDIAN,ai-generate
+dish_060.jpg,dish_060,Kadhi Pakora,INDIAN,ai-generate
+dish_061.jpg,dish_061,Gujarati Undhiyu,INDIAN,ai-generate
+dish_062.jpg,dish_062,Andhra Pesarattu,INDIAN,ai-generate
+dish_063.jpg,dish_063,Appam with Veg Stew,INDIAN,ai-generate
+dish_064.jpg,dish_064,Chicken Chettinad,INDIAN,ai-generate
+dish_065.jpg,dish_065,Rajasthani Laal Maas,INDIAN,ai-generate
+dish_066.jpg,dish_066,Veg Hakka Noodles,CHINESE,stock
+dish_067.jpg,dish_067,Schezwan Fried Rice,CHINESE,stock
+dish_068.jpg,dish_068,Veg Manchurian,CHINESE,stock
+dish_069.jpg,dish_069,Sweet & Sour Chicken,CHINESE,stock
+dish_070.jpg,dish_070,Thai Green Curry,THAI,stock
+dish_071.jpg,dish_071,Kimchi Fried Rice,CHINESE,stock
+dish_072.jpg,dish_072,Pan-Fried Gyoza,JAPANESE,stock
+dish_073.jpg,dish_073,Chicken Satay,THAI,stock
+dish_074.jpg,dish_074,Indonesian Nasi Goreng,THAI,stock
+dish_075.jpg,dish_075,Vietnamese Pho,THAI,stock
+dish_076.jpg,dish_076,Pasta Carbonara,ITALIAN,stock
+dish_077.jpg,dish_077,Classic Baked Lasagna,ITALIAN,stock
+dish_078.jpg,dish_078,Mushroom Risotto,ITALIAN,stock
+dish_079.jpg,dish_079,Tomato Bruschetta,ITALIAN,stock
+dish_080.jpg,dish_080,Italian Minestrone Soup,ITALIAN,stock
+dish_081.jpg,dish_081,Fish & Chips,COMFORT,ai-generate
+dish_082.jpg,dish_082,Chicken Greek Gyro,MEDITERRANEAN,stock
+dish_083.jpg,dish_083,Spanish Omelette,MEDITERRANEAN,stock
+dish_084.jpg,dish_084,Cheesy Enchiladas,MEXICAN,stock
+dish_085.jpg,dish_085,Chilli Con Carne,MEXICAN,stock
+dish_086.jpg,dish_086,Nachos Supreme,MEXICAN,stock
+dish_087.jpg,dish_087,Guacamole Toast,MEXICAN,stock
+dish_088.jpg,dish_088,Sizzling Chicken Fajitas,MEXICAN,stock
+dish_089.jpg,dish_089,Bhel Puri,STREET_FOOD,ai-generate
+dish_090.jpg,dish_090,Sev Puri,STREET_FOOD,ai-generate
+dish_091.jpg,dish_091,Gujarati Dabeli,STREET_FOOD,ai-generate
+dish_092.jpg,dish_092,Khasta Kachori,STREET_FOOD,ai-generate
+dish_093.jpg,dish_093,Samosa Chaat,STREET_FOOD,ai-generate
+dish_094.jpg,dish_094,Bread Pakora,STREET_FOOD,ai-generate
+dish_095.jpg,dish_095,Paneer Frankie,STREET_FOOD,ai-generate
+dish_096.jpg,dish_096,Quinoa Salad,HEALTHY,stock
+dish_097.jpg,dish_097,Buddha Bowl,HEALTHY,stock
+dish_098.jpg,dish_098,Grilled Fish with Veggies,HEALTHY,stock
+dish_099.jpg,dish_099,Protein Sprout Salad,HEALTHY,stock
+dish_100.jpg,dish_100,Protein Smoothie Bowl,HEALTHY,stock
+dish_101.jpg,dish_101,Chole Bhature,INDIAN,ai-generate
+dish_104.jpg,dish_104,Rajma Chawal,INDIAN,ai-generate
+dish_105.jpg,dish_105,Pav Bhaji,INDIAN,ai-generate
+dish_106.jpg,dish_106,Aloo Paratha,INDIAN,ai-generate
+dish_107.jpg,dish_107,Hyderabadi Veg Biryani,INDIAN,ai-generate
+dish_108.jpg,dish_108,Kadhai Paneer,INDIAN,ai-generate
+dish_113.jpg,dish_113,Chicken Teriyaki Bowl,JAPANESE,stock
+dish_114.jpg,dish_114,Veg Sushi Rolls,JAPANESE,stock
+dish_115.jpg,dish_115,Miso Ramen,JAPANESE,stock
+dish_116.jpg,dish_116,Chicken Katsu Curry,JAPANESE,stock
+dish_117.jpg,dish_117,Onigiri,JAPANESE,stock
+dish_120.jpg,dish_120,Tom Yum Soup,THAI,stock
+dish_121.jpg,dish_121,Thai Basil Fried Rice,THAI,stock
+dish_123.jpg,dish_123,Vada Pav,STREET_FOOD,ai-generate
+dish_124.jpg,dish_124,Pani Puri,STREET_FOOD,ai-generate
+dish_125.jpg,dish_125,Veg Steamed Momos,STREET_FOOD,ai-generate
+dish_126.jpg,dish_126,Chicken Kathi Roll,STREET_FOOD,ai-generate
+dish_129.jpg,dish_129,Chicken Quesadilla,MEXICAN,stock
+dish_130.jpg,dish_130,Veg Burrito Bowl,MEXICAN,stock
+dish_131.jpg,dish_131,Loaded Nachos,MEXICAN,stock
+dish_132.jpg,dish_132,Fish Tacos,MEXICAN,stock
+dish_133.jpg,dish_133,Margherita Pizza,ITALIAN,stock
+dish_134.jpg,dish_134,Penne Arrabbiata,ITALIAN,stock
+dish_136.jpg,dish_136,Veg Lasagna,ITALIAN,stock
+dish_138.jpg,dish_138,Chicken Manchurian,CHINESE,stock
+dish_139.jpg,dish_139,Veg Spring Rolls,CHINESE,stock
+dish_140.jpg,dish_140,Hot and Sour Soup,CHINESE,stock
+dish_143.jpg,dish_143,Hummus and Pita Platter,MEDITERRANEAN,stock
+dish_144.jpg,dish_144,Mac and Cheese,COMFORT,ai-generate
+dish_145.jpg,dish_145,Moong Dal Khichdi,COMFORT,ai-generate
+dish_146.jpg,dish_146,Tomato Soup with Grilled Cheese,COMFORT,ai-generate
+dish_147.jpg,dish_147,Quinoa Buddha Bowl,HEALTHY,stock
+dish_150.jpg,dish_150,Peri Peri Loaded Fries,FAST_FOOD,stock
+dish_151.jpg,dish_151,Misal Pav,STREET_FOOD,ai-generate
+dish_152.jpg,dish_152,Litti Chokha,INDIAN,ai-generate
+dish_153.jpg,dish_153,Poha,INDIAN,ai-generate
+dish_154.jpg,dish_154,Medu Vada,INDIAN,ai-generate
+dish_155.jpg,dish_155,Shakshuka,MEDITERRANEAN,stock
+dish_156.jpg,dish_156,Butter Garlic Naan Pizza,FAST_FOOD,stock
+dish_157.jpg,dish_157,Korean Bibimbap,HEALTHY,stock
+dish_158.jpg,dish_158,Chicken Shawarma Plate,MEDITERRANEAN,stock
+dish_159.jpg,dish_159,Egg Curry,INDIAN,ai-generate
+dish_160.jpg,dish_160,Chicken Fried Rice,CHINESE,stock
+dish_161.jpg,dish_161,Rasam Rice,COMFORT,ai-generate
+dish_162.jpg,dish_162,Paneer Butter Masala Wrap,STREET_FOOD,ai-generate
+dish_163.jpg,dish_163,Greek Chicken Souvlaki,MEDITERRANEAN,stock
+dish_164.jpg,dish_164,Chocolate Mug Cake,COMFORT,ai-generate
+dish_165.jpg,dish_165,Veg Club Sandwich Grilled,FAST_FOOD,stock
+dish_166.jpg,dish_166,Thukpa,THAI,stock
+dish_167.jpg,dish_167,Mediterranean Couscous Salad,HEALTHY,stock
