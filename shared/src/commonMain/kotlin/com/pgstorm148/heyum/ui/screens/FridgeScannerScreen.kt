@@ -773,23 +773,16 @@ class FridgeScannerScreen(val prepopulatedIngredient: String? = null) : Screen {
                                                     verticalAlignment = Alignment.CenterVertically,
                                                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                                                 ) {
+                                                    // Dish photo as a round thumbnail (gradient + emoji when there is no photo).
                                                     Box(
                                                         modifier = Modifier
                                                             .size(42.dp)
-                                                            .background(PrimaryColor.copy(alpha = 0.1f), CircleShape),
-                                                        contentAlignment = Alignment.Center
+                                                            .clip(CircleShape)
                                                     ) {
-                                                        Text(
-                                                            text = when (dish.cuisine) {
-                                                                Cuisine.INDIAN -> "🍛"
-                                                                Cuisine.CHINESE -> "🥢"
-                                                                Cuisine.ITALIAN -> "🍕"
-                                                                Cuisine.MEXICAN -> "🌮"
-                                                                Cuisine.JAPANESE -> "🍣"
-                                                                Cuisine.THAI -> "🍜"
-                                                                else -> "🍱"
-                                                            },
-                                                            fontSize = 22.sp
+                                                        com.pgstorm148.heyum.ui.components.DishImage(
+                                                            dish = dish,
+                                                            modifier = Modifier.fillMaxSize(),
+                                                            emojiSize = 22.sp
                                                         )
                                                     }
                                                     Column {
@@ -950,23 +943,16 @@ class FridgeScannerScreen(val prepopulatedIngredient: String? = null) : Screen {
                                                         verticalAlignment = Alignment.CenterVertically,
                                                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                                                     ) {
+                                                        // Dish photo as a round thumbnail (gradient + emoji when there is no photo).
                                                         Box(
                                                             modifier = Modifier
                                                                 .size(42.dp)
-                                                                .background(PrimaryColor.copy(alpha = 0.1f), CircleShape),
-                                                            contentAlignment = Alignment.Center
+                                                                .clip(CircleShape)
                                                         ) {
-                                                            Text(
-                                                                text = when (dish.cuisine) {
-                                                                    Cuisine.INDIAN -> "🍛"
-                                                                    Cuisine.CHINESE -> "🥢"
-                                                                    Cuisine.ITALIAN -> "🍕"
-                                                                    Cuisine.MEXICAN -> "🌮"
-                                                                    Cuisine.JAPANESE -> "🍣"
-                                                                    Cuisine.THAI -> "🍜"
-                                                                    else -> "🍱"
-                                                                },
-                                                                fontSize = 22.sp
+                                                            com.pgstorm148.heyum.ui.components.DishImage(
+                                                                dish = dish,
+                                                                modifier = Modifier.fillMaxSize(),
+                                                                emojiSize = 22.sp
                                                             )
                                                         }
                                                         Column {

@@ -31,6 +31,11 @@ kotlin {
             implementation(compose.ui)
             implementation(compose.components.resources)
             implementation(compose.components.uiToolingPreview)
+
+            // Dish photos: Coil loads the remote image, and falls back to the copy bundled in
+            // composeResources/files/dishes when the device is offline (see DishImage.kt).
+            implementation(libs.coil.compose)
+            implementation(libs.coil.network.ktor)
             
             // Koin
             implementation(libs.koin.core)
@@ -58,10 +63,12 @@ kotlin {
             // Promo popup video player (streams from Firebase Storage)
             implementation(libs.media3.exoplayer)
             implementation(libs.media3.ui)
+            implementation(libs.ktor.client.okhttp)
         }
         
         iosMain.dependencies {
             // iOS specific dependencies (delegates handles Firebase)
+            implementation(libs.ktor.client.darwin)
         }
     }
 }

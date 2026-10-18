@@ -2,14 +2,23 @@ name: iOS Release
 
 # Manual trigger, or push a tag like ios-v1.1 to ship that commit.
 #
-# Requires these repository secrets (Settings → Secrets and variables → Actions):
-#   ASC_KEY_ID          App Store Connect API key id (10 chars)
-#   ASC_ISSUER_ID       App Store Connect issuer id (UUID)
-#   ASC_PRIVATE_KEY_B64 base64 of the AuthKey_XXXX.p8:  openssl base64 < AuthKey.p8 | tr -d '\n'
+# Required repository secrets (Settings → Secrets and variables → Actions).
+# Encode files with:  openssl base64 < FILENAME | tr -d '\n'
 #
-# Signing uses -allowProvisioningUpdates with the same API key, so no .p12 or
-# provisioning-profile secrets are needed — Xcode fetches/creates them itself.
-# See docs/IOS_CD.md.
+#   BUILD_CERTIFICATE_BASE64        base64 of the Apple Distribution .p12
+#   P12_PASSWORD                    password used when exporting that .p12
+#   BUILD_PROVISION_PROFILE_BASE64  base64 of the App Store profile for
+#                                   com.pgstorm148.heyum.iosApp
+#   WIDGET_PROVISION_PROFILE_BASE64 base64 of the App Store profile for
+#                                   com.pgstorm148.heyum.iosApp.HeyumWidget
+#   KEYCHAIN_PASSWORD               any string; secures the temp runner keychain
+#   IOS_PLIST                       contents of the manual-signing ExportOptions
+#                                   plist (see docs/IOS_CD.md)
+#   APPLE_ID                        Apple ID used for upload
+#   APPSTORE_PASSWORD               app-specific password for that Apple ID
+#
+# The widget extension needs its own profile — a single app profile is not
+# enough, and omitting it fails at export, not at build.
 
 on:
   workflow_dispatch:
@@ -38,7 +47,7 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Cache Gradle
+      - name: Cache Gradle and Kotlin/Native
         uses: actions/cache@v4
         with:
           path: |
@@ -48,33 +57,53 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml') }}
           restore-keys: ${{ runner.os }}-gradle-
 
-      - name: Install asc
-        run: brew install asc
-
-      # The API key doubles as the signing credential for -allowProvisioningUpdates,
-      # so it has to exist on disk as a .p8 as well as in asc's config.
-      - name: Configure App Store Connect credentials
+      # Imports the distribution certificate into a throwaway keychain and drops
+      # both provisioning profiles where Xcode looks for them. The keychain is
+      # scoped to this run; the runner is destroyed afterwards either way.
+      - name: Install signing certificate and profiles
         env:
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-          ASC_PRIVATE_KEY_B64: ${{ secrets.ASC_PRIVATE_KEY_B64 }}
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
+          WIDGET_PROVISION_PROFILE_BASE64: ${{ secrets.WIDGET_PROVISION_PROFILE_BASE64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
-          mkdir -p ~/.appstoreconnect/private_keys ~/.asc
-          echo "$ASC_PRIVATE_KEY_B64" | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
-          chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
-          asc auth login \
-            --name ci \
-            --key-id "$ASC_KEY_ID" \
-            --issuer-id "$ASC_ISSUER_ID" \
-            --private-key ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8 \
-            --bypass-keychain
-          asc auth status --validate
+          CERT_PATH=$RUNNER_TEMP/build_certificate.p12
+          APP_PROFILE_PATH=$RUNNER_TEMP/app.mobileprovision
+          WIDGET_PROFILE_PATH=$RUNNER_TEMP/widget.mobileprovision
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERT_PATH
+          echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode -o $APP_PROFILE_PATH
+          echo -n "$WIDGET_PROVISION_PROFILE_BASE64" | base64 --decode -o $WIDGET_PROFILE_PATH
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          security import $CERT_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          # Lets codesign use the key without an interactive prompt.
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp $APP_PROFILE_PATH ~/Library/MobileDevice/Provisioning\ Profiles/
+          cp $WIDGET_PROFILE_PATH ~/Library/MobileDevice/Provisioning\ Profiles/
+
+          security find-identity -v -p codesigning $KEYCHAIN_PATH
+
+      - name: Write export options
+        env:
+          IOS_PLIST: ${{ secrets.IOS_PLIST }}
+        run: |
+          echo "$IOS_PLIST" > $RUNNER_TEMP/ExportOptions.plist
+          plutil -lint $RUNNER_TEMP/ExportOptions.plist
 
       - name: Build, export and upload
         env:
-          # xcodebuild reads these for -allowProvisioningUpdates.
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          EXPORT_OPTIONS: ${{ runner.temp }}/ExportOptions.plist
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPSTORE_PASSWORD: ${{ secrets.APPSTORE_PASSWORD }}
         run: |
           ARGS=""
           if [ -n "${{ inputs.build_number }}" ]; then
@@ -82,10 +111,16 @@ jobs:
           fi
           ./scripts/ios-release.sh $ARGS
 
-      - name: Upload artifacts on failure
+      - name: Upload build output on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: ios-build-logs
+          name: ios-build-output
           path: build/ios-release
           retention-days: 5
+
+      - name: Clean up keychain and profiles
+        if: always()
+        run: |
+          security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
+          rm -f ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision || true

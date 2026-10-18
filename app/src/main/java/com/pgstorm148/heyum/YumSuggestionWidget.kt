@@ -81,25 +81,32 @@ class YumSuggestionWidget : GlanceAppWidget() {
                     .background(BackgroundColor)
                     .padding(12.dp)
             ) {
-                when {
-                    // Large (roughly 4x4 and up): every pane at once.
-                    size.height >= 220.dp -> LargeWidget(ctx, snapshot)
-                    // Medium (4x2): cravings alongside meals.
-                    size.width >= 170.dp -> MediumWidget(ctx, snapshot)
-                    // Small (2x2): a single cycling pane.
-                    else -> SmallWidget(ctx, snapshot, currentPane())
+                // One vertical pane at every size, with arrows to rotate between them.
+                // Showing all three stacked (the old large layout) left big empty gaps on a
+                // wide widget; a single pane fills the space and reads the same everywhere.
+                // Taller widgets simply show more rows.
+                val rows = when {
+                    size.height >= 220.dp -> 8
+                    size.height >= 140.dp -> 4
+                    else -> 3
                 }
+                PaneWidget(ctx, snapshot, currentPane(), rows)
             }
         }
     }
 
+    /**
+     * A single pane filling the widget vertically, with prev/next arrows in the header.
+     *
+     * Glance renders through RemoteViews, which has no swipe/gesture support, so the arrows are
+     * the closest the platform allows to sliding between panes.
+     */
     @Composable
-    private fun SmallWidget(context: Context, snapshot: WidgetSnapshot, pane: WidgetPane) {
+    private fun PaneWidget(context: Context, snapshot: WidgetSnapshot, pane: WidgetPane, rows: Int) {
         Column(
             modifier = GlanceModifier.fillMaxSize().clickable(openAppAction(context, pane, snapshot)),
             verticalAlignment = Alignment.Top
         ) {
-            // Header: pane title on the left, cycle affordance on the right.
             Row(
                 modifier = GlanceModifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -109,86 +116,26 @@ class YumSuggestionWidget : GlanceAppWidget() {
                     style = TextStyle(color = AccentColor, fontSize = 11.sp, fontWeight = FontWeight.Bold),
                     modifier = GlanceModifier.defaultWeight()
                 )
+                // Generous padding so these stay tappable at widget scale.
+                Text(
+                    text = " ‹ ",
+                    style = TextStyle(color = MutedTextColor, fontSize = 15.sp, fontWeight = FontWeight.Bold),
+                    modifier = GlanceModifier.clickable(actionRunCallback<PrevPaneCallback>()).padding(4.dp)
+                )
                 Text(
                     text = " › ",
-                    style = TextStyle(color = MutedTextColor, fontSize = 16.sp, fontWeight = FontWeight.Bold),
-                    modifier = GlanceModifier.clickable(actionRunCallback<CyclePaneCallback>())
+                    style = TextStyle(color = MutedTextColor, fontSize = 15.sp, fontWeight = FontWeight.Bold),
+                    modifier = GlanceModifier.clickable(actionRunCallback<CyclePaneCallback>()).padding(4.dp)
                 )
             }
 
-            Spacer(modifier = GlanceModifier.height(6.dp))
+            Spacer(modifier = GlanceModifier.height(8.dp))
 
             when (pane) {
-                WidgetPane.CRAVINGS -> CravingList(snapshot, maxLines = 3)
-                WidgetPane.MEALS -> MealList(snapshot, maxLines = 3)
+                WidgetPane.CRAVINGS -> CravingList(snapshot, maxLines = rows)
+                WidgetPane.MEALS -> MealList(snapshot, maxLines = rows)
                 WidgetPane.SESSION -> SessionPane(snapshot, compact = true)
             }
-        }
-    }
-
-    @Composable
-    private fun MediumWidget(context: Context, snapshot: WidgetSnapshot) {
-        Row(modifier = GlanceModifier.fillMaxSize()) {
-            Column(
-                modifier = GlanceModifier.defaultWeight().fillMaxHeight()
-                    .clickable(openAppAction(context, WidgetPane.CRAVINGS, snapshot))
-            ) {
-                Text(
-                    text = paneTitle(WidgetPane.CRAVINGS),
-                    style = TextStyle(color = AccentColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                )
-                Spacer(modifier = GlanceModifier.height(6.dp))
-                CravingList(snapshot, maxLines = 3)
-            }
-
-            Spacer(modifier = GlanceModifier.width(12.dp))
-
-            Column(
-                modifier = GlanceModifier.defaultWeight().fillMaxHeight()
-                    .clickable(openAppAction(context, WidgetPane.MEALS, snapshot))
-            ) {
-                Text(
-                    text = paneTitle(WidgetPane.MEALS),
-                    style = TextStyle(color = AccentColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                )
-                Spacer(modifier = GlanceModifier.height(6.dp))
-                MealList(snapshot, maxLines = 3)
-            }
-        }
-    }
-
-    @Composable
-    private fun LargeWidget(context: Context, snapshot: WidgetSnapshot) {
-        Column(modifier = GlanceModifier.fillMaxSize()) {
-            Column(
-                modifier = GlanceModifier.fillMaxWidth()
-                    .clickable(openAppAction(context, WidgetPane.CRAVINGS, snapshot))
-            ) {
-                Text(
-                    text = paneTitle(WidgetPane.CRAVINGS),
-                    style = TextStyle(color = AccentColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                )
-                Spacer(modifier = GlanceModifier.height(4.dp))
-                CravingList(snapshot, maxLines = 3)
-            }
-
-            Spacer(modifier = GlanceModifier.height(10.dp))
-
-            Column(
-                modifier = GlanceModifier.fillMaxWidth()
-                    .clickable(openAppAction(context, WidgetPane.MEALS, snapshot))
-            ) {
-                Text(
-                    text = paneTitle(WidgetPane.MEALS),
-                    style = TextStyle(color = AccentColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                )
-                Spacer(modifier = GlanceModifier.height(4.dp))
-                MealList(snapshot, maxLines = 3)
-            }
-
-            Spacer(modifier = GlanceModifier.height(10.dp))
-
-            SessionPane(snapshot, compact = false)
         }
     }
 
@@ -306,12 +253,19 @@ class YumSuggestionWidget : GlanceAppWidget() {
     /** Opens the app on the screen matching the tapped pane. */
     private fun openAppAction(context: Context, pane: WidgetPane, snapshot: WidgetSnapshot): Action {
         val code = snapshot.sessionCode
-        if (pane == WidgetPane.SESSION && !code.isNullOrBlank()) {
-            return joinSessionAction(context, code)
+        if (pane == WidgetPane.SESSION) {
+            // A live session jumps straight into it; with no session, open the app's group
+            // sheet so the tap still does something instead of silently going nowhere.
+            return if (!code.isNullOrBlank()) joinSessionAction(context, code)
+            else payloadAction(context, "group_new")
         }
+        return payloadAction(context, if (pane == WidgetPane.MEALS) "meal_log" else "craving_log")
+    }
+
+    private fun payloadAction(context: Context, type: String): Action {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            putExtra("notification_type", if (pane == WidgetPane.MEALS) "meal_log" else "craving_log")
+            putExtra("notification_type", type)
         }
         return actionStartActivity(intent)
     }
@@ -327,7 +281,24 @@ class YumSuggestionWidget : GlanceAppWidget() {
     }
 }
 
-/** Advances the small widget to the next pane and re-renders in place. */
+/** Steps the widget back to the previous pane and re-renders in place. */
+class PrevPaneCallback : ActionCallback {
+    override suspend fun onAction(
+        context: Context,
+        glanceId: GlanceId,
+        parameters: androidx.glance.action.ActionParameters
+    ) {
+        try {
+            val store = GlobalContext.get().get<WidgetDataStore>()
+            store.savePaneIndex((store.getPaneIndex() - 1).mod(WidgetPane.entries.size))
+            YumSuggestionWidget().updateAll(context)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+}
+
+/** Advances the widget to the next pane and re-renders in place. */
 class CyclePaneCallback : ActionCallback {
     override suspend fun onAction(
         context: Context,

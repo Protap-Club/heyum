@@ -285,7 +285,11 @@ class HomeScreen : Screen {
                                     try {
                                         db.saveCraving(craving)
                                     } catch (e: Exception) {
-                                        // Silent error handling to ensure offline resilience
+                                        // Firestore queues writes offline and syncs later, so a
+                                        // failure here is genuinely unexpected. Log it — silently
+                                        // swallowing made a broken *read* (missing Firestore index)
+                                        // look like a broken write for a long time.
+                                        e.printStackTrace()
                                     }
                                 }
                             },

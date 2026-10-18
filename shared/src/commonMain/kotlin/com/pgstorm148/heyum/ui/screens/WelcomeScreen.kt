@@ -86,6 +86,11 @@ class WelcomeScreen(val initialNotificationPayload: NotificationPayload? = null)
                                 navigator.replace(MealSelectorScreen())
                                 navigator.push(CravingLogScreen())
                             }
+                            // Widget session pane with no live session: land on the group sheet.
+                            "group_new" -> {
+                                navigator.replace(MealSelectorScreen())
+                                navigator.push(DecisionCardScreen(mealType = "ALL", openGroupSheet = true))
+                            }
                             else -> {
                                 navigator.replace(MealSelectorScreen())
                             }

@@ -203,33 +203,14 @@ class PostDecisionScreen(
                         colors = CardDefaults.cardColors(containerColor = CardBackgroundColor)
                     ) {
                         Box(modifier = Modifier.fillMaxSize()) {
-                            // Dish Image Gradient
-                            val gradient = remember(dish.id) {
-                                val colors = when (dish.cuisine) {
-                                    Cuisine.INDIAN -> listOf(Color(0xFFE53935), Color(0xFFFFB74D))
-                                    Cuisine.CHINESE -> listOf(Color(0xFF8E24AA), Color(0xFFF06292))
-                                    Cuisine.MEXICAN -> listOf(Color(0xFF43A047), Color(0xFFAED581))
-                                    Cuisine.HEALTHY -> listOf(Color(0xFF00ACC1), Color(0xFF80DEEA))
-                                    else -> listOf(Color(0xFFFFB300), Color(0xFFFFE082))
-                                }
-                                Brush.verticalGradient(colors)
-                            }
-                            Box(
+                            // Dish photo (bundled / hosted), falling back to the cuisine gradient + emoji.
+                            com.pgstorm148.heyum.ui.components.DishImage(
+                                dish = dish,
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .scale(imageScale)
-                                    .background(gradient),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                val foodEmoji = when (dish.cuisine) {
-                                    Cuisine.INDIAN -> "🍛"
-                                    Cuisine.CHINESE -> "🥢"
-                                    Cuisine.MEXICAN -> "🌮"
-                                    Cuisine.HEALTHY -> "🥗"
-                                    else -> "🍲"
-                                }
-                                Text(text = foodEmoji, fontSize = 72.sp)
-                            }
+                                    .scale(imageScale),
+                                emojiSize = 72.sp
+                            )
 
                             // Dark overlay gradient for readable text
                             Box(

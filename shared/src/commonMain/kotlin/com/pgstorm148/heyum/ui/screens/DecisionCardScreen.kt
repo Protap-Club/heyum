@@ -397,7 +397,9 @@ data class EmojiParticle(
 class DecisionCardScreen(
     val mealType: String = "ALL",
     val showTooltip: Boolean = false,
-    val autoJoinGroupCode: String? = null
+    val autoJoinGroupCode: String? = null,
+    /** Opens the group sheet straight away — used by the home-screen widget's session pane. */
+    val openGroupSheet: Boolean = false
 ) : Screen {
     @Composable
     override fun Content() {
@@ -427,7 +429,7 @@ class DecisionCardScreen(
         var transitionTrigger by remember { mutableStateOf(0) }
         var isSlideLeft by remember { mutableStateOf(true) }
         var isTooltipVisible by remember { mutableStateOf(showTooltip) }
-        var showGroupBottomSheet by remember { mutableStateOf(false) }
+        var showGroupBottomSheet by remember { mutableStateOf(openGroupSheet) }
 
         LaunchedEffect(screenModel.pendingGroupSessionCode) {
             val code = screenModel.pendingGroupSessionCode
@@ -836,36 +838,12 @@ fun DecisionCard(
                     .fillMaxWidth()
                     .fillMaxHeight(0.55f)
             ) {
-                // Mock Image box with premium food gradients
-                val gradient = remember(dish.id) {
-                    val colors = when (dish.cuisine) {
-                        Cuisine.INDIAN -> listOf(Color(0xFFE53935), Color(0xFFFFB74D))
-                        Cuisine.CHINESE -> listOf(Color(0xFF8E24AA), Color(0xFFF06292))
-                        Cuisine.MEXICAN -> listOf(Color(0xFF43A047), Color(0xFFAED581))
-                        Cuisine.HEALTHY -> listOf(Color(0xFF00ACC1), Color(0xFF80DEEA))
-                        else -> listOf(Color(0xFFFFB300), Color(0xFFFFE082))
-                    }
-                    Brush.verticalGradient(colors)
-                }
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(gradient),
-                    contentAlignment = Alignment.Center
-                ) {
-                    // Simple text representation inside clean gradient since we don't have local drawable resources loaded
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        val foodEmoji = when (dish.cuisine) {
-                            Cuisine.INDIAN -> "🍛"
-                            Cuisine.CHINESE -> "🥢"
-                            Cuisine.MEXICAN -> "🌮"
-                            Cuisine.HEALTHY -> "🥗"
-                            else -> "🍲"
-                        }
-                        Text(text = foodEmoji, fontSize = 64.sp)
-                    }
-                }
+                // Real dish photo when one exists, otherwise the cuisine gradient + emoji this
+                // screen used to draw inline. See DishImage for the full fallback chain.
+                com.pgstorm148.heyum.ui.components.DishImage(
+                    dish = dish,
+                    modifier = Modifier.fillMaxSize()
+                )
 
                 // White fade-out at bottom of image
                 Box(
