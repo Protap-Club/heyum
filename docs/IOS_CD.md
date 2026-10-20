@@ -41,12 +41,16 @@ config file. Anyone holding it can upload builds and edit store metadata.
 The widget added in 1.1 will not sign until these exist:
 
 1. **[developer.apple.com](https://developer.apple.com/account) → Identifiers → App Groups →** create
-   `group.com.pgstorm148.heyum`
+   `group.com.pgstorm148.heyum.widget`
 2. **Identifiers → App IDs →** create `com.pgstorm148.heyum.iosApp.HeyumWidget`
 3. Enable the **App Groups** capability on **both** `com.pgstorm148.heyum.iosApp` and the new
    widget App ID, and tick that group on each.
 
 Without step 3 the app and widget can't share data, and the widget renders empty.
+
+The group is `.widget`-suffixed because plain `group.com.pgstorm148.heyum` (and
+`...heyum.iosApp`) are already registered to another Apple team, and group IDs are unique
+across all of Apple. The group and both App IDs live under team `H58VG6UP2D`.
 
 ### 3. Store the key locally — on your Mac
 
