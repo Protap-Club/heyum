@@ -10,7 +10,7 @@ import kotlinx.datetime.toLocalDateTime
  * Purely cosmetic — never affects the decision flow. Add new effects here and in AmbienceOverlay.
  */
 enum class AmbienceEffect {
-    NONE, RAIN, SUNNY, SNOW, STARS, CONFETTI, HEARTS, BUBBLES, LEAVES, FIREFLIES, PETALS;
+    NONE, RAIN, SUNNY, SNOW, STARS, CONFETTI, HEARTS, BUBBLES, LEAVES, FIREFLIES, PETALS, DIYA, FIREWORKS;
 
     companion object {
         /** Unknown / null names fall back to NONE, so a bad server value can never break the UI. */
