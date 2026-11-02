@@ -4,7 +4,7 @@
 <dict>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.com.pgstorm148.heyum</string>
+		<string>group.com.pgstorm148.heyum.widget</string>
 	</array>
 </dict>
 </plist>

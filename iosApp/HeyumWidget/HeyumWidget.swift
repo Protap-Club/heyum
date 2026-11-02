@@ -4,7 +4,7 @@ import AppIntents
 
 // Must match HEYUM_APP_GROUP in WidgetDataStore.ios.kt — a widget runs as a separate binary and
 // can only see the app's data through an App Group container.
-private let appGroupId = "group.com.pgstorm148.heyum"
+private let appGroupId = "group.com.pgstorm148.heyum.widget"
 
 // Keys written by WidgetDataStore.ios.kt.
 private enum Keys {

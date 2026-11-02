@@ -8,7 +8,7 @@ import platform.Foundation.NSUserDefaults
  * container is. This identifier must match the App Group enabled on both targets in the Apple
  * Developer portal and in each target's entitlements file.
  */
-const val HEYUM_APP_GROUP = "group.com.pgstorm148.heyum"
+const val HEYUM_APP_GROUP = "group.com.pgstorm148.heyum.widget"
 
 private const val KEY_CRAVINGS = "widget.cravings"
 private const val KEY_MEALS = "widget.meals"
