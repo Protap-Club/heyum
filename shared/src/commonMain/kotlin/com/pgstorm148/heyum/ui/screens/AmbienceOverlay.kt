@@ -84,6 +84,8 @@ fun AmbienceOverlay(config: AmbienceConfig, modifier: Modifier = Modifier) {
         AmbienceEffect.LEAVES -> LeavesEffect(count, field)
         AmbienceEffect.FIREFLIES -> FirefliesEffect(count, accent ?: Color(0xFFCDFF6B), field)
         AmbienceEffect.PETALS -> PetalsEffect(count, field)
+        AmbienceEffect.DIYA -> DiyaEffect(count, accent ?: Color(0xFFFFB347), field)
+        AmbienceEffect.FIREWORKS -> FireworksEffect(count, accent, field)
         AmbienceEffect.NONE -> Unit
     }
 }
@@ -308,6 +310,66 @@ private fun FirefliesEffect(count: Int, color: Color, modifier: Modifier) {
     }
 }
 
+/** Diwali: warm flickering diya flames drifting up like floating lanterns. */
+@Composable
+private fun DiyaEffect(count: Int, color: Color, modifier: Modifier) {
+    val lamps = rememberParticles((count * 2 / 3).coerceIn(8, 50))
+    val t by rememberLoop(9000)
+    val flicker by rememberLoop(700, reverse = true)
+    Canvas(modifier) {
+        lamps.forEach { p ->
+            val prog = frac(t * (p.speed * 0.45f) + p.phase)
+            val y = (1f - prog) * size.height
+            val x = swayX(p, t, size.width, mult = 1.5f)
+            val r = 3f + p.size * 4f
+            val glow = (0.7f + 0.3f * sin((flicker + p.phase) * TWO_PI)) * (1f - prog * 0.5f)
+            drawCircle(
+                brush = Brush.radialGradient(
+                    listOf(color.copy(alpha = 0.45f * glow), Color.Transparent),
+                    center = Offset(x, y), radius = r * 5f
+                ),
+                radius = r * 5f, center = Offset(x, y)
+            )
+            // Flame: a small teardrop above a clay-coloured lamp base.
+            val flame = Path().apply {
+                moveTo(x, y - r * 2.2f)
+                quadraticBezierTo(x + r, y - r * 0.4f, x, y + r * 0.4f)
+                quadraticBezierTo(x - r, y - r * 0.4f, x, y - r * 2.2f)
+                close()
+            }
+            drawPath(flame, Color(0xFFFFF3B0).copy(alpha = glow.coerceIn(0f, 1f)))
+            drawOval(
+                Color(0xFFB5651D).copy(alpha = 0.85f),
+                topLeft = Offset(x - r * 1.4f, y + r * 0.4f), size = Size(r * 2.8f, r * 1.1f)
+            )
+        }
+    }
+}
+
+/** Diwali: bursts of sparks that expand from fixed launch points and fade, staggered in time. */
+@Composable
+private fun FireworksEffect(count: Int, accent: Color?, modifier: Modifier) {
+    val bursts = rememberParticles((count / 8).coerceIn(3, 8))
+    val t by rememberLoop(3200)
+    val rays = 14
+    Canvas(modifier) {
+        bursts.forEach { p ->
+            val prog = frac(t * (0.6f + p.speed * 0.4f) + p.phase)
+            val cx = (0.15f + p.x * 0.7f) * size.width
+            val cy = (0.1f + p.y * 0.45f) * size.height
+            val radius = prog * (0.12f + p.size * 0.1f) * size.height
+            val fade = (1f - prog).coerceIn(0f, 1f)
+            val color = accent ?: FireworkColors[p.index % FireworkColors.size]
+            for (i in 0 until rays) {
+                val a = i * TWO_PI / rays + p.rot
+                val px = cx + cos(a) * radius
+                val py = cy + sin(a) * radius + prog * prog * 24f // sparks sag as they fall
+                drawCircle(color.copy(alpha = fade), radius = 2.5f * fade + 0.8f, center = Offset(px, py))
+            }
+        }
+    }
+}
+
 // ---- Drawing helpers -----------------------------------------------------------------------------
 
 /** Simple heart from two lobes + a triangle — cheap and reads clearly at small sizes. */
@@ -329,7 +391,10 @@ private val ConfettiColors = listOf(
 )
 private val HeartColors = listOf(Color(0xFFFF5DA2), Color(0xFFFF2A5F), Color(0xFFFF8FB1))
 private val LeafColors = listOf(Color(0xFFD2691E), Color(0xFFC0392B), Color(0xFFE67E22), Color(0xFFB7791F))
-private val PetalColors = listOf(Color(0xFFFFC0CB), Color(0xFFFFB7C5), Color(0xFFFFD9E3))
+private val FireworkColors = listOf(
+    Color(0xFFFFD23F), Color(0xFFFF6B35), Color(0xFFFF5DA2), Color(0xFF7ED957), Color(0xFF4FC3F7)
+)
+private val PetalColors =listOf(Color(0xFFFFC0CB), Color(0xFFFFB7C5), Color(0xFFFFD9E3))
 
 /** Parses a "#RRGGBB" hex into a Color, returning [fallback] on any bad input. */
 private fun accentOr(hex: String?, fallback: Color?): Color? {

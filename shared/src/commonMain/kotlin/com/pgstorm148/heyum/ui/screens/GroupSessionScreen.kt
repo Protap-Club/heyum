@@ -195,7 +195,7 @@ class GroupSessionScreen(private val joinCode: String) : Screen {
                         isLinkCopied = isLinkCopied,
                         onCopyLink = {
                             val link = "https://$BASE_URL/join/${currentSession.joinCode}"
-                            clipboardManager.setText(AnnotatedString("Join my Heyum group and let's decide what to eat! $link"))
+                            clipboardManager.setText(AnnotatedString(groupInviteMessage(link)))
                             isLinkCopied = true
                             coroutineScope.launch {
                                 delay(2000)
@@ -204,7 +204,7 @@ class GroupSessionScreen(private val joinCode: String) : Screen {
                         },
                         onShare = {
                             val link = "https://$BASE_URL/join/${currentSession.joinCode}"
-                            shareText("Join my Heyum group and let's decide what to eat! $link")
+                            shareText(groupInviteMessage(link))
                         },
                         onStart = { coroutineScope.launch { groupRepository.startCollaboration(joinCode) } },
                         onLeave = {

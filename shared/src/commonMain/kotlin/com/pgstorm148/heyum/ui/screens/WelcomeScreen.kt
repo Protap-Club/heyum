@@ -14,6 +14,7 @@ import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import com.pgstorm148.heyum.firebase.FirebaseAuth
+import com.pgstorm148.heyum.firebase.PhoneNumberFormatter
 import com.pgstorm148.heyum.firebase.UserRepository
 import com.pgstorm148.heyum.firebase.DishRepository
 import com.pgstorm148.heyum.model.*
@@ -180,7 +181,8 @@ class WelcomeScreen(val initialNotificationPayload: NotificationPayload? = null)
                         value = phoneNumber,
                         onValueChange = { phoneNumber = it; errorMessage = null },
                         label = { Text("Phone Number", color = TextMutedColor) },
-                        placeholder = { Text("+91 98765 43210", color = TextMutedColor.copy(alpha = 0.5f)) },
+                        placeholder = { Text("98765 43210", color = TextMutedColor.copy(alpha = 0.5f)) },
+                        supportingText = { Text("+91 is added automatically. Other country? Start with + and the code.", color = TextMutedColor) },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = PrimaryColor,
@@ -212,10 +214,16 @@ class WelcomeScreen(val initialNotificationPayload: NotificationPayload? = null)
                                     errorMessage = "Please enter your phone number"
                                     return@Button
                                 }
+                                val e164 = PhoneNumberFormatter.toE164(phoneNumber)
+                                if (e164 == null) {
+                                    errorMessage = "That doesn't look like a valid number. Enter your 10-digit mobile number."
+                                    return@Button
+                                }
+                                phoneNumber = e164
                                 isLoading = true
                                 try {
                                     auth.verifyPhoneNumber(
-                                        phoneNumber = phoneNumber,
+                                        phoneNumber = e164,
                                         onCodeSent = { id ->
                                             verificationId = id
                                             isLoading = false
