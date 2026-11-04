@@ -1,5 +1,8 @@
 package com.pgstorm148.heyum.ui.screens
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -7,6 +10,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -177,17 +182,26 @@ class WelcomeScreen(val initialNotificationPayload: NotificationPayload? = null)
                         modifier = Modifier.padding(bottom = 32.dp)
                     )
 
+                    val phoneComplete = phoneNumber.count { it.isDigit() } >= 10 &&
+                        PhoneNumberFormatter.toE164(phoneNumber) != null
+                    val readyGreen = Color(0xFF2E9E5B)
+                    val buttonScale by animateFloatAsState(
+                        targetValue = if (phoneComplete) 1.03f else 1f,
+                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                        label = "sendOtpScale"
+                    )
+
                     OutlinedTextField(
                         value = phoneNumber,
                         onValueChange = { phoneNumber = it; errorMessage = null },
                         label = { Text("Phone Number", color = TextMutedColor) },
                         placeholder = { Text("98765 43210", color = TextMutedColor.copy(alpha = 0.5f)) },
-                        supportingText = { Text("+91 is added automatically. Other country? Start with + and the code.", color = TextMutedColor) },
+                        trailingIcon = { if (phoneComplete) PhoneReadyBadge() },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = PrimaryColor,
-                            unfocusedBorderColor = TextMutedColor.copy(alpha = 0.5f),
-                            focusedLabelColor = PrimaryColor,
+                            focusedBorderColor = if (phoneComplete) readyGreen else PrimaryColor,
+                            unfocusedBorderColor = if (phoneComplete) readyGreen else TextMutedColor.copy(alpha = 0.5f),
+                            focusedLabelColor = if (phoneComplete) readyGreen else PrimaryColor,
                             cursorColor = PrimaryColor
                         ),
                         modifier = Modifier.fillMaxWidth()
@@ -246,6 +260,7 @@ class WelcomeScreen(val initialNotificationPayload: NotificationPayload? = null)
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(50.dp)
+                                .graphicsLayer { scaleX = buttonScale; scaleY = buttonScale }
                         ) {
                             Text(
                                 text = "Send OTP",
